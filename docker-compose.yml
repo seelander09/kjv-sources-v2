@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  # Weaviate Vector Database (Primary)
+  weaviate:
+    image: semitechnologies/weaviate:latest
+    ports:
+      - "8080:8080"
+      - "50051:50051"
+    environment:
+      - QUERY_DEFAULTS_LIMIT=25
+      - AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true
+      - PERSISTENCE_DATA_PATH=/var/lib/weaviate
+      - DEFAULT_VECTORIZER_MODULE=none
+      - ENABLE_MODULES=
+      - CLUSTER_HOSTNAME=node1
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    restart: unless-stopped
+    networks:
+      - kjv-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/meta"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Qdrant Vector Database (Alternative/Backup)
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    restart: unless-stopped
+    networks:
+      - kjv-network
+    profiles:
+      - qdrant  # Only start with --profile qdrant
+
+  # KJV Sources API Server
+  kjv-api:
+    build: .
+    ports:
+      - "8001:8001"
+    environment:
+      - ENVIRONMENT=local
+      - WEAVIATE_HOST=weaviate
+      - WEAVIATE_PORT=8080
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - LOG_LEVEL=INFO
+    depends_on:
+      weaviate:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+      - ./output:/app/output
+      - ./lightrag_data:/app/lightrag_data
+    restart: unless-stopped
+    networks:
+      - kjv-network
+    profiles:
+      - api  # Only start with --profile api
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - kjv-network
+    profiles:
+      - cache  # Only start with --profile cache
+
+  # Nginx reverse proxy (for production)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - kjv-api
+    restart: unless-stopped
+    networks:
+      - kjv-network
+    profiles:
+      - production  # Only start with --profile production
+
+volumes:
+  weaviate_data:
+  qdrant_data:
+  redis_data:
+
+networks:
+  kjv-network:
+    driver: bridge

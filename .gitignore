@@ -1,0 +1,223 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+sources-env/
+.conda/
+.conda-env/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Database files and vector stores
+qdrant_data/
+weaviate-data/
+weaviate-local/
+lightrag_data/
+src/qdrant_data/
+*.db
+*.sqlite
+*.sqlite3
+storage.sqlite
+
+# Generated output and processed data
+output/
+processed_documents/
+scriptural_truth_data/
+nbcot_output/
+new_documents/
+src/output/
+
+# Large data files
+wiki_markdown/
+KJV-Concord-1769-Words-Per-Line-1.txt
+*.txt
+!README.txt
+!LICENSE.txt
+
+# Analysis and result files
+*_results.json
+*_analysis.json
+*_pattern_results.json
+*_search_results.json
+*_geographical_results.json
+*_network_data.json
+*_heatmap_data.csv
+*_overview.html
+*_vectors.json
+*_summary.json
+*_manifest.json
+covenant_pattern_results.json
+doublets_data.json
+doublets_heatmap_data.csv
+doublets_overview.html
+concept_summary_vectors_*.json
+hidden_testament_vector_probe_*.json
+listen_guard_do_pattern_results.json
+sequential_verb_pattern_results.json
+targeted_pattern_analysis.json
+west_direction_source_analysis_*.json
+torah_geographical_results_*.json
+qdrant_geographical_search_results_*.json
+qdrant_semantic_pattern_search_results.json
+cytoscape_*.json
+property_data.json
+word_data.json
+
+# Data files
+*.csv
+*.xlsx
+*.xls
+*.json
+*.parquet
+*.pickle
+*.pkl
+
+# Output files
+output/*.html
+output/*.png
+output/*.jpg
+output/*.pdf
+
+# HTML files (generated reports)
+*.html
+!index.html
+
+# Test files
+test_*.html
+test_*.txt
+
+# IDE
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+src/kjv_sources.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+cache/
+backups/
+
+# Media and large document files
+*.mp3
+*.mp4
+*.wav
+*.flac
+*.avi
+*.mov
+*.mkv
+*.flv
+*.wmv
+*.m4a
+*.aac
+*.ogg
+*.wma
+
+# PDF (allow specific tracked docs)
+*.pdf
+!README.pdf
+!LICENSE.pdf
+
+# Project-local archives and datasets
+NBCOT Test files/
+scriptural-truth-website/
+frontend/
+
+# Environment and secrets
+.env
+.env.test
+.env.production
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Node.js / JavaScript tooling
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+.cache
+.parcel-cache
+.next
+.nuxt
+dist/
+coverage/
+.nyc_output
+.grunt
+bower_components/
+.lock-wscript
+build/Release
+jspm_packages/
+*.tsbuildinfo
+.npm
+.eslintcache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.node_repl_history
+*.tgz
+.yarn-integrity
+.out
+.storybook-out
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Keep essential config files
+!package.json
+!package-lock.json
+!tsconfig.json
+!docker-compose.yml
+!requirements.txt
+!api_requirements.txt
+!lightrag_requirements.txt
+!nbcot_requirements.txt
