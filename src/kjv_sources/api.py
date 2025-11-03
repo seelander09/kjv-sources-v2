@@ -752,6 +752,291 @@ def geography_pov(
     return payload
 
 
+def build_source_stratigraphy_data(
+    client: KJVQdrantClient, book: Optional[str] = None, chapter_range: Optional[str] = None
+) -> Dict[str, Any]:
+    """Build source stratigraphy data for visualization."""
+    try:
+        all_results = client.client.scroll(
+            collection_name=client.collection_name,
+            limit=10000,
+            with_payload=True
+        )[0]
+        
+        # Organize by book -> chapter -> verse
+        book_chapter_data: Dict[str, Dict[int, List[Dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
+        
+        for result in all_results:
+            payload = result.payload
+            verse_book = payload.get("book", "")
+            chapter = payload.get("chapter", 0)
+            
+            if book and verse_book != book:
+                continue
+            
+            sources_list = client._parse_sources_field(
+                payload.get("sources"),
+                payload.get("primary_source")
+            )
+            
+            # Calculate source percentages for this verse
+            verse_text = payload.get("text", "")
+            source_percentages = {}
+            total_chars = len(verse_text)
+            
+            for source in DEFAULT_SOURCES:
+                source_text_key = f"text_{source}"
+                source_text = payload.get(source_text_key, "")
+                if source_text and total_chars > 0:
+                    source_percentages[source] = round((len(source_text) / total_chars) * 100, 2)
+                else:
+                    source_percentages[source] = 0.0
+            
+            book_chapter_data[verse_book][chapter].append({
+                "verse": payload.get("verse", 0),
+                "sources": sources_list,
+                "source_percentages": source_percentages,
+                "reference": payload.get("reference", f"{verse_book} {chapter}:{payload.get('verse', 0)}")
+            })
+        
+        # Aggregate by chapter
+        stratigraphy_data = []
+        for verse_book in sorted(book_chapter_data.keys(), key=lambda x: BOOK_INDEX.get(x, 999)):
+            if book and verse_book != book:
+                continue
+            for chapter_num in sorted(book_chapter_data[verse_book].keys()):
+                verses = book_chapter_data[verse_book][chapter_num]
+                # Aggregate source percentages for chapter
+                chapter_source_percentages = {source: 0.0 for source in DEFAULT_SOURCES}
+                total_verses = len(verses)
+                
+                for verse in verses:
+                    for source in DEFAULT_SOURCES:
+                        chapter_source_percentages[source] += verse["source_percentages"].get(source, 0.0)
+                
+                # Average percentages
+                for source in DEFAULT_SOURCES:
+                    chapter_source_percentages[source] = round(
+                        chapter_source_percentages[source] / total_verses if total_verses > 0 else 0, 2
+                    )
+                
+                stratigraphy_data.append({
+                    "book": verse_book,
+                    "chapter": chapter_num,
+                    "source_percentages": chapter_source_percentages,
+                    "verse_count": total_verses
+                })
+        
+        return {
+            "data": stratigraphy_data,
+            "books": sorted(book_chapter_data.keys(), key=lambda x: BOOK_INDEX.get(x, 999)),
+            "sources": DEFAULT_SOURCES,
+            "meta": {
+                "total_chapters": len(stratigraphy_data),
+                "filter_book": book,
+                "filter_chapter_range": chapter_range
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error building stratigraphy data: {str(e)}")
+
+
+def build_source_dominance_matrix(client: KJVQdrantClient) -> Dict[str, Any]:
+    """Build source dominance matrix comparing sources across books."""
+    try:
+        all_results = client.client.scroll(
+            collection_name=client.collection_name,
+            limit=10000,
+            with_payload=True
+        )[0]
+        
+        # Aggregate by book and source
+        book_source_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        book_total_verses: Dict[str, int] = defaultdict(int)
+        
+        for result in all_results:
+            payload = result.payload
+            verse_book = payload.get("book", "")
+            sources_list = client._parse_sources_field(
+                payload.get("sources"),
+                payload.get("primary_source")
+            )
+            
+            book_total_verses[verse_book] += 1
+            for source in sources_list:
+                book_source_counts[verse_book][source] += 1
+        
+        # Build matrix
+        matrix_data = []
+        for book in BOOK_ORDER:
+            if book not in book_total_verses:
+                continue
+            total = book_total_verses[book]
+            row = {"book": book}
+            for source in DEFAULT_SOURCES:
+                count = book_source_counts[book].get(source, 0)
+                percentage = round((count / total * 100) if total > 0 else 0, 2)
+                row[source] = percentage
+                row[f"{source}_count"] = count
+            row["total_verses"] = total
+            matrix_data.append(row)
+        
+        return {
+            "matrix": matrix_data,
+            "books": BOOK_ORDER,
+            "sources": DEFAULT_SOURCES,
+            "meta": {
+                "total_books": len(matrix_data),
+                "total_verses": sum(book_total_verses.values())
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error building dominance matrix: {str(e)}")
+
+
+def build_doublet_heatmap_data(client: KJVQdrantClient, category: Optional[str] = None) -> Dict[str, Any]:
+    """Build doublet distribution heatmap data."""
+    try:
+        all_results = client.client.scroll(
+            collection_name=client.collection_name,
+            limit=10000,
+            with_payload=True
+        )[0]
+        
+        # Organize by book -> chapter
+        heatmap_data: Dict[str, Dict[int, Dict[str, Any]]] = defaultdict(lambda: defaultdict(lambda: {
+            "doublet_count": 0,
+            "doublets": [],
+            "source_composition": defaultdict(int)
+        }))
+        
+        for result in all_results:
+            payload = result.payload
+            if not payload.get("is_doublet", False):
+                continue
+            
+            verse_book = payload.get("book", "")
+            chapter = payload.get("chapter", 0)
+            
+            # Check category filter
+            if category:
+                doublet_categories = payload.get("doublet_categories", [])
+                if isinstance(doublet_categories, str):
+                    doublet_categories = [doublet_categories]
+                if category not in doublet_categories:
+                    continue
+            
+            sources_list = client._parse_sources_field(
+                payload.get("sources"),
+                payload.get("primary_source")
+            )
+            
+            heatmap_data[verse_book][chapter]["doublet_count"] += 1
+            heatmap_data[verse_book][chapter]["doublets"].append({
+                "verse": payload.get("verse", 0),
+                "sources": sources_list,
+                "categories": payload.get("doublet_categories", []),
+                "name": payload.get("doublet_names", [])
+            })
+            
+            for source in sources_list:
+                heatmap_data[verse_book][chapter]["source_composition"][source] += 1
+        
+        # Convert to array format
+        heatmap_array = []
+        for book in BOOK_ORDER:
+            if book not in heatmap_data:
+                continue
+            for chapter_num in sorted(heatmap_data[book].keys()):
+                chapter_data = heatmap_data[book][chapter_num]
+                heatmap_array.append({
+                    "book": book,
+                    "chapter": chapter_num,
+                    "doublet_count": chapter_data["doublet_count"],
+                    "source_composition": dict(chapter_data["source_composition"]),
+                    "doublets": chapter_data["doublets"]
+                })
+        
+        return {
+            "heatmap": heatmap_array,
+            "books": BOOK_ORDER,
+            "category_filter": category,
+            "meta": {
+                "total_chapters_with_doublets": len(heatmap_array),
+                "total_doublets": sum(d["doublet_count"] for d in heatmap_array)
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error building doublet heatmap: {str(e)}")
+
+
+@app.get("/api/v1/bird-eye/source-stratigraphy", tags=["bird-eye"])
+async def get_source_stratigraphy(
+    book: Optional[str] = Query(None, description="Filter by specific book"),
+    chapter_range: Optional[str] = Query(None, description="Chapter range filter (e.g., '1-5')")
+) -> Dict[str, Any]:
+    """Get source stratigraphy data for visualization."""
+    client = get_qdrant_client()
+    return build_source_stratigraphy_data(client, book, chapter_range)
+
+
+@app.get("/api/v1/bird-eye/source-flow-network", tags=["bird-eye"])
+async def get_source_flow_network() -> Dict[str, Any]:
+    """Get source flow network data (reuses doublet flow data)."""
+    client = get_qdrant_client()
+    stats = client.get_doublet_statistics()
+    if not stats:
+        raise HTTPException(status_code=404, detail="Statistics unavailable")
+    return build_doublet_flow_payload(stats, client)
+
+
+@app.get("/api/v1/bird-eye/doublet-heatmap", tags=["bird-eye"])
+async def get_doublet_heatmap(
+    category: Optional[str] = Query(None, description="Filter by doublet category")
+) -> Dict[str, Any]:
+    """Get doublet distribution heatmap data."""
+    client = get_qdrant_client()
+    return build_doublet_heatmap_data(client, category)
+
+
+@app.get("/api/v1/bird-eye/source-dominance-matrix", tags=["bird-eye"])
+async def get_source_dominance_matrix() -> Dict[str, Any]:
+    """Get source dominance matrix comparing sources across books."""
+    client = get_qdrant_client()
+    return build_source_dominance_matrix(client)
+
+
+@app.get("/api/v1/bird-eye/timeline", tags=["bird-eye"])
+async def get_source_timeline(
+    start_date: Optional[int] = Query(None, description="Start date filter (approximate BCE)"),
+    end_date: Optional[int] = Query(None, description="End date filter (approximate BCE)")
+) -> Dict[str, Any]:
+    """Get source timeline data for evolution visualization."""
+    # Note: This is a simplified version - full timeline would require historical dating
+    client = get_qdrant_client()
+    stratigraphy_data = build_source_stratigraphy_data(client)
+    
+    # Convert to timeline format (simplified - would need actual dating)
+    timeline_data = []
+    for item in stratigraphy_data["data"]:
+        timeline_data.append({
+            "book": item["book"],
+            "chapter": item["chapter"],
+            "source_percentages": item["source_percentages"],
+            "approximate_date": None,  # Would need historical dating data
+            "period": "Torah Period"  # Placeholder
+        })
+    
+    return {
+        "timeline": timeline_data,
+        "sources": DEFAULT_SOURCES,
+        "meta": {
+            "total_entries": len(timeline_data),
+            "date_range": {"start": start_date, "end": end_date}
+        }
+    }
+
+
 @app.get("/", tags=["meta"])
 def root() -> Dict[str, Any]:
     """Lightweight status endpoint for health checks."""
@@ -773,6 +1058,11 @@ def root() -> Dict[str, Any]:
             {"path": "/doublets/flow", "description": "Layered Sankey + chord data"},
             {"path": "/timeline/documentary-lens", "description": "Documentary lens stacked timeline"},
             {"path": "/geography/pov", "description": "Geographic POV payload"},
+            {"path": "/api/v1/bird-eye/source-stratigraphy", "description": "Source stratigraphy map"},
+            {"path": "/api/v1/bird-eye/source-flow-network", "description": "Source flow network"},
+            {"path": "/api/v1/bird-eye/doublet-heatmap", "description": "Doublet distribution heatmap"},
+            {"path": "/api/v1/bird-eye/source-dominance-matrix", "description": "Source dominance matrix"},
+            {"path": "/api/v1/bird-eye/timeline", "description": "Source evolution timeline"},
         ],
         "collection": collection_status,
     }
