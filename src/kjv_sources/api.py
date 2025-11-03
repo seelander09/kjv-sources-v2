@@ -10,7 +10,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
-from kjv_sources.qdrant_client import KJVQdrantClient, create_qdrant_client
+from .qdrant_client import KJVQdrantClient, create_qdrant_client
 
 DEFAULT_SOURCES = ["J", "E", "P", "R"]
 BOOK_ORDER = ["Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy"]
@@ -86,6 +86,9 @@ app = FastAPI(
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:8001",
+    "http://127.0.0.1:8001",
+    "null",  # Allow file:// protocol
 ]
 
 app.add_middleware(
@@ -779,23 +782,10 @@ def build_source_stratigraphy_data(
                 payload.get("primary_source")
             )
             
-            # Calculate source percentages for this verse
-            verse_text = payload.get("text", "")
-            source_percentages = {}
-            total_chars = len(verse_text)
-            
-            for source in DEFAULT_SOURCES:
-                source_text_key = f"text_{source}"
-                source_text = payload.get(source_text_key, "")
-                if source_text and total_chars > 0:
-                    source_percentages[source] = round((len(source_text) / total_chars) * 100, 2)
-                else:
-                    source_percentages[source] = 0.0
-            
+            # Store verse data with sources
             book_chapter_data[verse_book][chapter].append({
                 "verse": payload.get("verse", 0),
                 "sources": sources_list,
-                "source_percentages": source_percentages,
                 "reference": payload.get("reference", f"{verse_book} {chapter}:{payload.get('verse', 0)}")
             })
         
@@ -806,19 +796,20 @@ def build_source_stratigraphy_data(
                 continue
             for chapter_num in sorted(book_chapter_data[verse_book].keys()):
                 verses = book_chapter_data[verse_book][chapter_num]
-                # Aggregate source percentages for chapter
-                chapter_source_percentages = {source: 0.0 for source in DEFAULT_SOURCES}
                 total_verses = len(verses)
                 
+                # Count verses by source
+                source_counts = {source: 0 for source in DEFAULT_SOURCES}
                 for verse in verses:
-                    for source in DEFAULT_SOURCES:
-                        chapter_source_percentages[source] += verse["source_percentages"].get(source, 0.0)
+                    for source in verse.get("sources", []):
+                        if source in source_counts:
+                            source_counts[source] += 1
                 
-                # Average percentages
+                # Calculate percentages
+                chapter_source_percentages = {}
                 for source in DEFAULT_SOURCES:
-                    chapter_source_percentages[source] = round(
-                        chapter_source_percentages[source] / total_verses if total_verses > 0 else 0, 2
-                    )
+                    percentage = round((source_counts[source] / total_verses * 100) if total_verses > 0 else 0, 2)
+                    chapter_source_percentages[source] = percentage
                 
                 stratigraphy_data.append({
                     "book": verse_book,
