@@ -112,6 +112,7 @@ output/*.pdf
 # Test files
 test_*.html
 test_*.txt
+test_push.txt
 
 # IDE
 .vscode/
@@ -159,6 +160,8 @@ backups/
 # Project-local archives and datasets
 NBCOT Test files/
 scriptural-truth-website/
+house-data/
+data/
 frontend/
 
 # Environment and secrets
@@ -169,6 +172,8 @@ frontend/
 .env.development.local
 .env.test.local
 .env.production.local
+.elysia_config
+.env.elysia
 
 # Node.js / JavaScript tooling
 node_modules/
