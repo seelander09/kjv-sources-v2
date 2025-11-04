@@ -1,7 +1,7 @@
 """FastAPI application exposing visualization-friendly endpoints for the KJV sources project."""
 
 import json
-from collections import defaultdict
+from collections import Counter, defaultdict
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -88,6 +88,8 @@ ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:8001",
     "http://127.0.0.1:8001",
+    "http://localhost:8080",  # Frontend HTTP server
+    "http://127.0.0.1:8080",
     "null",  # Allow file:// protocol
 ]
 
@@ -1028,6 +1030,484 @@ async def get_source_timeline(
     }
 
 
+# Verse-level detail endpoints
+@app.get("/api/v1/verses/by-chapter", tags=["verses"])
+async def get_verses_by_chapter(
+    book: str = Query(..., description="Book name (e.g., 'Genesis')"),
+    chapter: int = Query(..., description="Chapter number")
+) -> Dict[str, Any]:
+    """Get all verses for a specific book/chapter with full text, sources, and metadata."""
+    client = get_qdrant_client()
+    
+    try:
+        # Scroll through collection to find verses
+        all_results = client.client.scroll(
+            collection_name=client.collection_name,
+            limit=10000,
+            with_payload=True
+        )[0]
+        
+        # Filter for specific book and chapter
+        verses = []
+        for result in all_results:
+            payload = result.payload
+            if payload.get("book") == book and payload.get("chapter") == chapter:
+                sources_list = client._parse_sources_field(
+                    payload.get("sources"),
+                    payload.get("primary_source")
+                )
+                
+                verses.append({
+                    "verse": payload.get("verse", 0),
+                    "reference": payload.get("reference", f"{book} {chapter}:{payload.get('verse', 0)}"),
+                    "text": payload.get("full_text", ""),
+                    "sources": sources_list,
+                    "primary_source": payload.get("primary_source", ""),
+                    "source_count": len(sources_list),
+                    "is_doublet": payload.get("is_doublet", False),
+                    "doublet_names": payload.get("doublet_names", []),
+                    "doublet_categories": payload.get("doublet_categories", []),
+                    "doublet_themes": payload.get("doublet_themes", []),
+                    "pov_primary": payload.get("pov_primary", ""),
+                    "pov_themes": payload.get("pov_themes", [])
+                })
+        
+        # Sort by verse number
+        verses.sort(key=lambda x: x["verse"])
+        
+        return {
+            "book": book,
+            "chapter": chapter,
+            "verses": verses,
+            "total_verses": len(verses),
+            "meta": {
+                "has_doublets": any(v["is_doublet"] for v in verses),
+                "source_distribution": _calculate_source_distribution(verses)
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching verses: {str(e)}")
+
+
+def _calculate_source_distribution(verses: List[Dict[str, Any]]) -> Dict[str, int]:
+    """Calculate source distribution for a list of verses."""
+    distribution = {source: 0 for source in DEFAULT_SOURCES}
+    for verse in verses:
+        for source in verse.get("sources", []):
+            if source in distribution:
+                distribution[source] += 1
+    return distribution
+
+
+@app.get("/api/v1/doublets/compare", tags=["doublets"])
+async def get_doublet_comparison(
+    doublet_name: Optional[str] = Query(None, description="Doublet name to compare"),
+    doublet_id: Optional[str] = Query(None, description="Doublet ID to compare"),
+    reference1: Optional[str] = Query(None, description="First reference (e.g., 'Genesis 1:1')"),
+    reference2: Optional[str] = Query(None, description="Second reference (e.g., 'Genesis 2:4')")
+) -> Dict[str, Any]:
+    """Get side-by-side comparison of parallel passages (doublets)."""
+    client = get_qdrant_client()
+    
+    try:
+        # Scroll through collection
+        all_results = client.client.scroll(
+            collection_name=client.collection_name,
+            limit=10000,
+            with_payload=True
+        )[0]
+        
+        passages = []
+        
+        if doublet_name or doublet_id:
+            # Find all verses that are part of this doublet
+            for result in all_results:
+                payload = result.payload
+                if not payload.get("is_doublet", False):
+                    continue
+                
+                doublet_names = payload.get("doublet_names", [])
+                doublet_ids = payload.get("doublet_ids", [])
+                
+                if doublet_name and doublet_name in doublet_names:
+                    passages.append(_format_verse_for_comparison(payload, client))
+                elif doublet_id and doublet_id in doublet_ids:
+                    passages.append(_format_verse_for_comparison(payload, client))
+        
+        elif reference1 and reference2:
+            # Find specific verses by reference
+            for result in all_results:
+                payload = result.payload
+                ref = payload.get("reference", "")
+                if ref == reference1 or ref == reference2:
+                    passages.append(_format_verse_for_comparison(payload, client))
+        
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Must provide either doublet_name, doublet_id, or both reference1 and reference2"
+            )
+        
+        # Sort passages by canonical order
+        passages.sort(key=lambda x: (BOOK_INDEX.get(x["book"], 999), x["chapter"], x["verse"]))
+        
+        # Calculate textual differences if we have exactly 2 passages
+        differences = []
+        if len(passages) == 2:
+            differences = _calculate_textual_differences(passages[0]["text"], passages[1]["text"])
+        
+        return {
+            "passages": passages,
+            "total_passages": len(passages),
+            "differences": differences,
+            "meta": {
+                "doublet_name": doublet_name,
+                "doublet_id": doublet_id,
+                "has_theological_differences": any(
+                    p.get("theological_differences") for p in passages
+                )
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error comparing doublets: {str(e)}")
+
+
+def _format_verse_for_comparison(payload: Dict[str, Any], client: KJVQdrantClient) -> Dict[str, Any]:
+    """Format a verse payload for doublet comparison."""
+    sources_list = client._parse_sources_field(
+        payload.get("sources"),
+        payload.get("primary_source")
+    )
+    
+    return {
+        "reference": payload.get("reference", ""),
+        "book": payload.get("book", ""),
+        "chapter": payload.get("chapter", 0),
+        "verse": payload.get("verse", 0),
+        "text": payload.get("full_text", ""),
+        "sources": sources_list,
+        "primary_source": payload.get("primary_source", ""),
+        "doublet_names": payload.get("doublet_names", []),
+        "doublet_categories": payload.get("doublet_categories", []),
+        "doublet_themes": payload.get("doublet_themes", []),
+        "theological_differences": payload.get("theological_differences", [])
+    }
+
+
+def _calculate_textual_differences(text1: str, text2: str) -> List[Dict[str, Any]]:
+    """Calculate word-level differences between two texts."""
+    words1 = text1.split()
+    words2 = text2.split()
+    
+    differences = []
+    max_len = max(len(words1), len(words2))
+    
+    for i in range(max_len):
+        word1 = words1[i] if i < len(words1) else ""
+        word2 = words2[i] if i < len(words2) else ""
+        
+        if word1 != word2:
+            diff_type = "changed"
+            if not word1:
+                diff_type = "addition"
+            elif not word2:
+                diff_type = "omission"
+            
+            differences.append({
+                "position": i,
+                "type": diff_type,
+                "text1": word1,
+                "text2": word2
+            })
+    
+    return differences
+
+
+@app.get("/api/v1/doublets/timeline", tags=["doublets"])
+async def get_doublet_timeline() -> Dict[str, Any]:
+    """Get chronological view of doublet occurrences across the Torah."""
+    client = get_qdrant_client()
+    
+    try:
+        all_results = client.client.scroll(
+            collection_name=client.collection_name,
+            limit=10000,
+            with_payload=True
+        )[0]
+        
+        doublets = []
+        for result in all_results:
+            payload = result.payload
+            if not payload.get("is_doublet", False):
+                continue
+            
+            sources_list = client._parse_sources_field(
+                payload.get("sources"),
+                payload.get("primary_source")
+            )
+            
+            book = payload.get("book", "")
+            chapter = payload.get("chapter", 0)
+            verse = payload.get("verse", 0)
+            canonical_order = BOOK_INDEX.get(book, 999) * 100000 + chapter * 1000 + verse
+            
+            doublets.append({
+                "reference": payload.get("reference", ""),
+                "book": book,
+                "chapter": chapter,
+                "verse": verse,
+                "canonical_order": canonical_order,
+                "text_snippet": payload.get("full_text", "")[:100] + "...",
+                "sources": sources_list,
+                "primary_source": payload.get("primary_source", ""),
+                "doublet_names": payload.get("doublet_names", []),
+                "doublet_categories": payload.get("doublet_categories", []),
+                "doublet_themes": payload.get("doublet_themes", [])
+            })
+        
+        # Sort by canonical order
+        doublets.sort(key=lambda x: x["canonical_order"])
+        
+        # Group by doublet name for easier visualization
+        doublet_groups = defaultdict(list)
+        for doublet in doublets:
+            for name in doublet.get("doublet_names", ["Unknown"]):
+                doublet_groups[name].append(doublet)
+        
+        return {
+            "doublets": doublets,
+            "doublet_groups": dict(doublet_groups),
+            "total_doublets": len(doublets),
+            "unique_doublet_names": len(doublet_groups),
+            "meta": {
+                "books_with_doublets": len(set(d["book"] for d in doublets)),
+                "sources_in_doublets": list(set(s for d in doublets for s in d["sources"]))
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching doublet timeline: {str(e)}")
+
+
+@app.get("/api/v1/doublets/source-contribution-timeline", tags=["doublets"])
+async def get_source_contribution_timeline() -> Dict[str, Any]:
+    """Get timeline of doublet events with source contribution analysis."""
+    client = get_qdrant_client()
+    
+    try:
+        all_results = client.client.scroll(
+            collection_name=client.collection_name,
+            limit=10000,
+            with_payload=True
+        )[0]
+        
+        # Collect all doublet verses
+        doublets = []
+        for result in all_results:
+            payload = result.payload
+            if not payload.get("is_doublet", False):
+                continue
+            
+            sources_list = client._parse_sources_field(
+                payload.get("sources"),
+                payload.get("primary_source")
+            )
+            
+            book = payload.get("book", "")
+            chapter = payload.get("chapter", 0)
+            verse = payload.get("verse", 0)
+            canonical_order = BOOK_INDEX.get(book, 999) * 100000 + chapter * 1000 + verse
+            
+            doublets.append({
+                "reference": payload.get("reference", ""),
+                "book": book,
+                "chapter": chapter,
+                "verse": verse,
+                "canonical_order": canonical_order,
+                "sources": sources_list,
+                "primary_source": payload.get("primary_source", ""),
+                "doublet_names": payload.get("doublet_names", []),
+                "doublet_categories": payload.get("doublet_categories", []),
+                "doublet_themes": payload.get("doublet_themes", [])
+            })
+        
+        # Group by doublet name
+        doublet_groups = defaultdict(list)
+        for doublet in doublets:
+            for name in doublet.get("doublet_names", ["Unknown"]):
+                doublet_groups[name].append(doublet)
+        
+        # Create timeline events with source contribution analysis
+        timeline_events = []
+        for doublet_name, verses in doublet_groups.items():
+            if not verses:
+                continue
+            
+            # Calculate source contributions
+            source_counts = Counter()
+            for verse in verses:
+                for source in verse["sources"]:
+                    source_counts[source] += 1
+            
+            total_verses = len(verses)
+            sources_data = {}
+            for source, count in source_counts.items():
+                sources_data[source] = {
+                    "verse_count": count,
+                    "percentage": round((count / total_verses) * 100, 1)
+                }
+            
+            # Get reference range
+            min_verse = min(verses, key=lambda x: x["canonical_order"])
+            max_verse = max(verses, key=lambda x: x["canonical_order"])
+            
+            if min_verse["book"] == max_verse["book"]:
+                if min_verse["chapter"] == max_verse["chapter"]:
+                    reference_range = f"{min_verse['book']} {min_verse['chapter']}:{min_verse['verse']}-{max_verse['verse']}"
+                else:
+                    reference_range = f"{min_verse['book']} {min_verse['chapter']}-{max_verse['chapter']}"
+            else:
+                reference_range = f"{min_verse['book']} {min_verse['chapter']} - {max_verse['book']} {max_verse['chapter']}"
+            
+            # Collect all themes and categories
+            all_themes = set()
+            all_categories = set()
+            for verse in verses:
+                all_themes.update(verse.get("doublet_themes", []))
+                all_categories.update(verse.get("doublet_categories", []))
+            
+            timeline_events.append({
+                "doublet_name": doublet_name,
+                "canonical_order": min_verse["canonical_order"],
+                "reference_range": reference_range,
+                "book": min_verse["book"],
+                "chapter_start": min_verse["chapter"],
+                "chapter_end": max_verse["chapter"],
+                "sources": sources_data,
+                "total_verses": total_verses,
+                "themes": sorted(list(all_themes)),
+                "categories": sorted(list(all_categories))
+            })
+        
+        # Sort by canonical order
+        timeline_events.sort(key=lambda x: x["canonical_order"])
+        
+        return {
+            "timeline_events": timeline_events,
+            "total_events": len(timeline_events),
+            "meta": {
+                "total_doublet_verses": len(doublets),
+                "books_covered": sorted(list(set(e["book"] for e in timeline_events))),
+                "all_sources": sorted(list(set(s for e in timeline_events for s in e["sources"].keys())))
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching source contribution timeline: {str(e)}")
+
+
+@app.get("/api/v1/verses/search", tags=["verses"])
+async def search_verses(
+    book: Optional[str] = Query(None, description="Filter by book name"),
+    sources: Optional[str] = Query(None, description="Filter by sources (comma-separated, e.g., 'J,P')"),
+    doublet_category: Optional[str] = Query(None, description="Filter by doublet category"),
+    theme: Optional[str] = Query(None, description="Filter by theme"),
+    is_doublet: Optional[bool] = Query(None, description="Filter for doublets only"),
+    text_search: Optional[str] = Query(None, description="Search in verse text")
+) -> Dict[str, Any]:
+    """Search and filter verses by multiple criteria."""
+    client = get_qdrant_client()
+    
+    try:
+        all_results = client.client.scroll(
+            collection_name=client.collection_name,
+            limit=10000,
+            with_payload=True
+        )[0]
+        
+        # Parse sources filter
+        source_filter = []
+        if sources:
+            source_filter = [s.strip() for s in sources.split(',')]
+        
+        # Filter verses
+        filtered_verses = []
+        for result in all_results:
+            payload = result.payload
+            
+            # Apply filters
+            if book and payload.get("book") != book:
+                continue
+            
+            if is_doublet is not None and payload.get("is_doublet", False) != is_doublet:
+                continue
+            
+            if doublet_category:
+                categories = payload.get("doublet_categories", [])
+                if doublet_category not in categories:
+                    continue
+            
+            if theme:
+                themes = payload.get("doublet_themes", []) + payload.get("pov_themes", [])
+                if theme not in themes:
+                    continue
+            
+            if text_search:
+                text = payload.get("full_text", "").lower()
+                if text_search.lower() not in text:
+                    continue
+            
+            # Source filter
+            if source_filter:
+                verse_sources = client._parse_sources_field(
+                    payload.get("sources"),
+                    payload.get("primary_source")
+                )
+                if not any(s in verse_sources for s in source_filter):
+                    continue
+            
+            # Add to results
+            verse_sources = client._parse_sources_field(
+                payload.get("sources"),
+                payload.get("primary_source")
+            )
+            
+            filtered_verses.append({
+                "reference": payload.get("reference", ""),
+                "book": payload.get("book", ""),
+                "chapter": payload.get("chapter", 0),
+                "verse": payload.get("verse", 0),
+                "text": payload.get("full_text", ""),
+                "sources": verse_sources,
+                "primary_source": payload.get("primary_source", ""),
+                "is_doublet": payload.get("is_doublet", False),
+                "doublet_names": payload.get("doublet_names", []),
+                "doublet_categories": payload.get("doublet_categories", [])
+            })
+        
+        # Sort by canonical order
+        filtered_verses.sort(key=lambda x: (
+            BOOK_INDEX.get(x["book"], 999),
+            x["chapter"],
+            x["verse"]
+        ))
+        
+        return {
+            "verses": filtered_verses,
+            "total_results": len(filtered_verses),
+            "filters_applied": {
+                "book": book,
+                "sources": source_filter,
+                "doublet_category": doublet_category,
+                "theme": theme,
+                "is_doublet": is_doublet,
+                "text_search": text_search
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error searching verses: {str(e)}")
+
+
 @app.get("/", tags=["meta"])
 def root() -> Dict[str, Any]:
     """Lightweight status endpoint for health checks."""
@@ -1045,16 +1525,30 @@ def root() -> Dict[str, Any]:
 
     return {
         "service": "kjv-documentary-lens",
+        "version": "2.0",
+        "description": "Documentary Hypothesis Analysis with Enhanced Visualizations",
         "endpoints": [
+            # Legacy endpoints
             {"path": "/doublets/flow", "description": "Layered Sankey + chord data"},
             {"path": "/timeline/documentary-lens", "description": "Documentary lens stacked timeline"},
             {"path": "/geography/pov", "description": "Geographic POV payload"},
+            # Bird's Eye View endpoints
             {"path": "/api/v1/bird-eye/source-stratigraphy", "description": "Source stratigraphy map"},
             {"path": "/api/v1/bird-eye/source-flow-network", "description": "Source flow network"},
             {"path": "/api/v1/bird-eye/doublet-heatmap", "description": "Doublet distribution heatmap"},
             {"path": "/api/v1/bird-eye/source-dominance-matrix", "description": "Source dominance matrix"},
             {"path": "/api/v1/bird-eye/timeline", "description": "Source evolution timeline"},
+            # Verse-level endpoints (NEW)
+            {"path": "/api/v1/verses/by-chapter", "description": "Get all verses for a specific book/chapter"},
+            {"path": "/api/v1/verses/search", "description": "Search and filter verses by multiple criteria"},
+            # Doublet analysis endpoints (NEW)
+            {"path": "/api/v1/doublets/compare", "description": "Side-by-side comparison of doublets"},
+            {"path": "/api/v1/doublets/timeline", "description": "Chronological view of doublet occurrences"},
         ],
         "collection": collection_status,
+        "frontends": [
+            {"path": "/frontend/birds-eye-view.html", "description": "Bird's Eye View Dashboard"},
+            {"path": "/frontend/verse-explorer.html", "description": "Interactive Verse Explorer"},
+        ]
     }
 
