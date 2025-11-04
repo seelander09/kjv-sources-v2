@@ -18,6 +18,10 @@ rank-bm25>=0.2.2
 orjson>=3.8.0
 tqdm>=4.64.0
 
+# ML visualization dependencies
+umap-learn>=0.5.3
+networkx>=2.8.0
+
 # FastAPI and web server dependencies
 websockets>=11.0.0
 python-multipart>=0.0.6

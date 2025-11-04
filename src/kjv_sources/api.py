@@ -1406,6 +1406,394 @@ async def get_source_contribution_timeline() -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"Error fetching source contribution timeline: {str(e)}")
 
 
+@app.get("/api/v1/ml/embedding-projection", tags=["ml-insights"])
+async def get_embedding_projection(
+    method: str = Query("tsne", description="Projection method: 'tsne' or 'umap'"),
+    perplexity: int = Query(30, description="t-SNE perplexity parameter (5-50)"),
+    n_neighbors: int = Query(15, description="UMAP n_neighbors parameter")
+) -> Dict[str, Any]:
+    """Get 2D embedding projection of doublet verses using t-SNE or UMAP."""
+    try:
+        from sentence_transformers import SentenceTransformer
+        from sklearn.manifold import TSNE
+        import numpy as np
+        
+        # Try to import UMAP (optional dependency)
+        umap_available = False
+        if method.lower() == "umap":
+            try:
+                from umap import UMAP
+                umap_available = True
+            except ImportError:
+                raise HTTPException(status_code=400, detail="UMAP not installed. Use method='tsne' or install umap-learn")
+        
+        client = get_qdrant_client()
+        
+        # Get all doublet verses
+        all_results = client.client.scroll(
+            collection_name=client.collection_name,
+            limit=10000,
+            with_payload=True
+        )[0]
+        
+        doublet_verses = []
+        texts = []
+        for result in all_results:
+            payload = result.payload
+            if not payload.get("is_doublet", False):
+                continue
+            
+            sources_list = client._parse_sources_field(
+                payload.get("sources"),
+                payload.get("primary_source")
+            )
+            
+            verse_data = {
+                "reference": payload.get("reference", ""),
+                "text": payload.get("full_text", ""),
+                "book": payload.get("book", ""),
+                "chapter": payload.get("chapter", 0),
+                "verse": payload.get("verse", 0),
+                "sources": sources_list,
+                "primary_source": payload.get("primary_source", ""),
+                "doublet_names": payload.get("doublet_names", []),
+                "doublet_themes": payload.get("doublet_themes", [])
+            }
+            doublet_verses.append(verse_data)
+            texts.append(verse_data["text"])
+        
+        if len(texts) < 10:
+            raise HTTPException(status_code=400, detail="Not enough doublet verses for projection")
+        
+        # Generate embeddings
+        model = SentenceTransformer('all-MiniLM-L6-v2')
+        embeddings = model.encode(texts, show_progress_bar=False)
+        
+        # Apply dimensionality reduction
+        if method.lower() == "umap" and umap_available:
+            reducer = UMAP(n_components=2, n_neighbors=n_neighbors, random_state=42)
+            coords_2d = reducer.fit_transform(embeddings)
+        else:  # tsne
+            reducer = TSNE(n_components=2, perplexity=min(perplexity, len(texts)-1), random_state=42)
+            coords_2d = reducer.fit_transform(embeddings)
+        
+        # Build response
+        points = []
+        for i, verse in enumerate(doublet_verses):
+            points.append({
+                "x": float(coords_2d[i][0]),
+                "y": float(coords_2d[i][1]),
+                "reference": verse["reference"],
+                "text_snippet": verse["text"][:100] + "..." if len(verse["text"]) > 100 else verse["text"],
+                "book": verse["book"],
+                "chapter": verse["chapter"],
+                "verse": verse["verse"],
+                "sources": verse["sources"],
+                "primary_source": verse["primary_source"],
+                "doublet_names": verse["doublet_names"],
+                "doublet_themes": verse["doublet_themes"]
+            })
+        
+        return {
+            "method": method.lower(),
+            "total_points": len(points),
+            "points": points,
+            "meta": {
+                "embedding_model": "all-MiniLM-L6-v2",
+                "embedding_dim": 384,
+                "projection_params": {
+                    "perplexity": perplexity if method.lower() == "tsne" else None,
+                    "n_neighbors": n_neighbors if method.lower() == "umap" else None
+                }
+            }
+        }
+    except ImportError as e:
+        raise HTTPException(status_code=500, detail=f"Missing dependency: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating embedding projection: {str(e)}")
+
+
+@app.get("/api/v1/ml/similarity-network", tags=["ml-insights"])
+async def get_similarity_network(
+    similarity_threshold: float = Query(0.7, description="Minimum cosine similarity for edges (0-1)"),
+    max_edges: int = Query(500, description="Maximum number of edges to return")
+) -> Dict[str, Any]:
+    """Get network graph of doublet relationships based on semantic similarity."""
+    try:
+        from sentence_transformers import SentenceTransformer
+        import numpy as np
+        
+        # Try to import networkx
+        try:
+            import networkx as nx
+        except ImportError:
+            raise HTTPException(status_code=400, detail="NetworkX not installed")
+        
+        client = get_qdrant_client()
+        
+        # Get doublet events (grouped)
+        all_results = client.client.scroll(
+            collection_name=client.collection_name,
+            limit=10000,
+            with_payload=True
+        )[0]
+        
+        # Group by doublet name
+        doublet_groups = defaultdict(list)
+        for result in all_results:
+            payload = result.payload
+            if not payload.get("is_doublet", False):
+                continue
+            
+            for name in payload.get("doublet_names", ["Unknown"]):
+                doublet_groups[name].append(payload.get("full_text", ""))
+        
+        if len(doublet_groups) < 2:
+            raise HTTPException(status_code=400, detail="Not enough doublet groups for network")
+        
+        # Create representative text for each doublet group
+        doublet_list = []
+        doublet_texts = []
+        for name, texts in doublet_groups.items():
+            # Use first few verses as representative
+            representative_text = " ".join(texts[:3])
+            doublet_list.append(name)
+            doublet_texts.append(representative_text)
+        
+        # Generate embeddings
+        model = SentenceTransformer('all-MiniLM-L6-v2')
+        embeddings = model.encode(doublet_texts, show_progress_bar=False)
+        
+        # Calculate pairwise similarities
+        from sklearn.metrics.pairwise import cosine_similarity
+        similarity_matrix = cosine_similarity(embeddings)
+        
+        # Build network
+        G = nx.Graph()
+        
+        # Add nodes
+        for i, name in enumerate(doublet_list):
+            # Get source distribution
+            verses = doublet_groups[name]
+            sources_in_group = set()
+            for result in all_results:
+                payload = result.payload
+                if name in payload.get("doublet_names", []):
+                    sources_list = client._parse_sources_field(
+                        payload.get("sources"),
+                        payload.get("primary_source")
+                    )
+                    sources_in_group.update(sources_list)
+            
+            G.add_node(name, 
+                      index=i,
+                      size=len(verses),
+                      sources=list(sources_in_group),
+                      primary_source=list(sources_in_group)[0] if sources_in_group else "Unknown")
+        
+        # Add edges based on similarity
+        edges_added = 0
+        edge_list = []
+        for i in range(len(doublet_list)):
+            for j in range(i+1, len(doublet_list)):
+                sim = similarity_matrix[i][j]
+                if sim >= similarity_threshold:
+                    edge_list.append((i, j, sim))
+        
+        # Sort by similarity and take top edges
+        edge_list.sort(key=lambda x: x[2], reverse=True)
+        edge_list = edge_list[:max_edges]
+        
+        for i, j, sim in edge_list:
+            G.add_edge(doublet_list[i], doublet_list[j], weight=float(sim))
+            edges_added += 1
+        
+        # Detect communities
+        try:
+            from networkx.algorithms import community
+            communities = community.greedy_modularity_communities(G)
+            community_map = {}
+            for idx, comm in enumerate(communities):
+                for node in comm:
+                    community_map[node] = idx
+        except:
+            community_map = {node: 0 for node in G.nodes()}
+        
+        # Build response
+        nodes = []
+        for node in G.nodes():
+            data = G.nodes[node]
+            nodes.append({
+                "id": node,
+                "label": node,
+                "size": data.get("size", 1),
+                "sources": data.get("sources", []),
+                "primary_source": data.get("primary_source", "Unknown"),
+                "community": community_map.get(node, 0)
+            })
+        
+        edges = []
+        for source, target, data in G.edges(data=True):
+            edges.append({
+                "source": source,
+                "target": target,
+                "weight": data.get("weight", 0.0)
+            })
+        
+        return {
+            "nodes": nodes,
+            "edges": edges,
+            "total_nodes": len(nodes),
+            "total_edges": len(edges),
+            "communities": len(set(community_map.values())),
+            "meta": {
+                "similarity_threshold": similarity_threshold,
+                "max_edges_requested": max_edges,
+                "embedding_model": "all-MiniLM-L6-v2"
+            }
+        }
+    except ImportError as e:
+        raise HTTPException(status_code=500, detail=f"Missing dependency: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating similarity network: {str(e)}")
+
+
+@app.get("/api/v1/ml/feature-analysis", tags=["ml-insights"])
+async def get_feature_analysis() -> Dict[str, Any]:
+    """Get multi-dimensional feature analysis for doublet events."""
+    try:
+        client = get_qdrant_client()
+        
+        # Get all doublet verses
+        all_results = client.client.scroll(
+            collection_name=client.collection_name,
+            limit=10000,
+            with_payload=True
+        )[0]
+        
+        # Group by doublet name
+        doublet_groups = defaultdict(list)
+        for result in all_results:
+            payload = result.payload
+            if not payload.get("is_doublet", False):
+                continue
+            
+            sources_list = client._parse_sources_field(
+                payload.get("sources"),
+                payload.get("primary_source")
+            )
+            
+            verse_data = {
+                "text": payload.get("full_text", "").lower(),
+                "sources": sources_list,
+                "primary_source": payload.get("primary_source", ""),
+                "themes": payload.get("doublet_themes", []),
+                "categories": payload.get("doublet_categories", [])
+            }
+            
+            for name in payload.get("doublet_names", ["Unknown"]):
+                doublet_groups[name].append(verse_data)
+        
+        # Extract features for each doublet group
+        features_data = []
+        
+        for doublet_name, verses in doublet_groups.items():
+            # Calculate source distribution
+            source_counts = Counter()
+            for verse in verses:
+                for source in verse["sources"]:
+                    source_counts[source] += 1
+            
+            total_verses = len(verses)
+            source_percentages = {
+                source: (count / total_verses) * 100 
+                for source, count in source_counts.items()
+            }
+            
+            # Vocabulary features
+            combined_text = " ".join([v["text"] for v in verses])
+            
+            vocab_features = {
+                "J_vocab": sum([
+                    combined_text.count("lord") * 0.3,
+                    combined_text.count("behold") * 0.2,
+                    combined_text.count("said") * 0.1
+                ]) / total_verses,
+                "E_vocab": sum([
+                    combined_text.count("angel") * 0.25,
+                    combined_text.count("dream") * 0.2,
+                    combined_text.count("fear") * 0.2
+                ]) / total_verses,
+                "P_vocab": sum([
+                    combined_text.count("generation") * 0.3,
+                    combined_text.count("command") * 0.2,
+                    combined_text.count("holy") * 0.2
+                ]) / total_verses,
+                "D_vocab": sum([
+                    combined_text.count("listen") * 0.2,
+                    combined_text.count("observe") * 0.2,
+                    combined_text.count("covenant") * 0.2
+                ]) / total_verses,
+                "R_vocab": sum([
+                    combined_text.count("now") * 0.15,
+                    combined_text.count("then") * 0.15,
+                    combined_text.count("after") * 0.15
+                ]) / total_verses
+            }
+            
+            # Thematic features
+            all_themes = []
+            for verse in verses:
+                all_themes.extend(verse["themes"])
+            theme_counts = Counter(all_themes)
+            
+            # Structural features
+            avg_length = sum(len(v["text"]) for v in verses) / total_verses
+            word_count = sum(len(v["text"].split()) for v in verses) / total_verses
+            
+            features_data.append({
+                "doublet_name": doublet_name,
+                "total_verses": total_verses,
+                "source_distribution": source_percentages,
+                "vocabulary_features": vocab_features,
+                "themes": dict(theme_counts.most_common(5)),
+                "structural_features": {
+                    "avg_length": avg_length,
+                    "avg_word_count": word_count,
+                    "complexity": word_count / max(total_verses, 1)
+                },
+                "primary_source": max(source_counts.items(), key=lambda x: x[1])[0] if source_counts else "Unknown"
+            })
+        
+        # Define feature dimensions for parallel coordinates
+        feature_dimensions = [
+            {"key": "total_verses", "label": "Verse Count", "type": "numeric"},
+            {"key": "source_distribution.J", "label": "J %", "type": "numeric"},
+            {"key": "source_distribution.E", "label": "E %", "type": "numeric"},
+            {"key": "source_distribution.P", "label": "P %", "type": "numeric"},
+            {"key": "source_distribution.R", "label": "R %", "type": "numeric"},
+            {"key": "vocabulary_features.J_vocab", "label": "J Vocabulary", "type": "numeric"},
+            {"key": "vocabulary_features.E_vocab", "label": "E Vocabulary", "type": "numeric"},
+            {"key": "vocabulary_features.P_vocab", "label": "P Vocabulary", "type": "numeric"},
+            {"key": "vocabulary_features.D_vocab", "label": "D Vocabulary", "type": "numeric"},
+            {"key": "vocabulary_features.R_vocab", "label": "R Vocabulary", "type": "numeric"},
+            {"key": "structural_features.avg_word_count", "label": "Avg Words", "type": "numeric"},
+            {"key": "structural_features.complexity", "label": "Complexity", "type": "numeric"}
+        ]
+        
+        return {
+            "features": features_data,
+            "dimensions": feature_dimensions,
+            "total_doublets": len(features_data),
+            "meta": {
+                "feature_types": ["source_distribution", "vocabulary", "themes", "structural"],
+                "description": "Multi-dimensional feature analysis for parallel coordinates visualization"
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating feature analysis: {str(e)}")
+
+
 @app.get("/api/v1/verses/search", tags=["verses"])
 async def search_verses(
     book: Optional[str] = Query(None, description="Filter by book name"),
