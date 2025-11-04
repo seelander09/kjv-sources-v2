@@ -1896,6 +1896,241 @@ async def search_verses(
         raise HTTPException(status_code=500, detail=f"Error searching verses: {str(e)}")
 
 
+# ============================================================================
+# BOOK OF MORMON ENDPOINTS
+# ============================================================================
+
+@app.get("/api/v1/bom/statistics", tags=["book-of-mormon"])
+async def get_bom_statistics() -> Dict[str, Any]:
+    """Get statistics about Book of Mormon verses in the database."""
+    client = get_qdrant_client()
+    
+    try:
+        # Query all BOM verses
+        results = client.client.scroll(
+            collection_name=client.collection_name,
+            scroll_filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="book_category",
+                        match=MatchValue(value="book_of_mormon")
+                    )
+                ]
+            ),
+            limit=10000,
+            with_payload=True
+        )[0]
+        
+        # Collect statistics
+        authors = Counter()
+        literary_styles = Counter()
+        books = Counter()
+        christ_refs = 0
+        isaiah_refs = 0
+        
+        for result in results:
+            payload = result.payload
+            authors[payload.get("author", "Unknown")] += 1
+            literary_styles[payload.get("literary_style", "narrative")] += 1
+            books[payload.get("book", "Unknown")] += 1
+            if payload.get("christ_reference", False):
+                christ_refs += 1
+            if payload.get("isaiah_parallel"):
+                isaiah_refs += 1
+        
+        return {
+            "total_verses": len(results),
+            "total_books": len(books),
+            "books": dict(books),
+            "authors": dict(authors),
+            "literary_styles": dict(literary_styles),
+            "christ_references": christ_refs,
+            "isaiah_parallels": isaiah_refs
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching BOM statistics: {str(e)}")
+
+
+@app.get("/api/v1/bom/verses/by-chapter", tags=["book-of-mormon"])
+async def get_bom_verses_by_chapter(
+    book: str = Query(..., description="Book name (e.g., '1 Nephi')"),
+    chapter: int = Query(..., description="Chapter number")
+) -> Dict[str, Any]:
+    """Get all Book of Mormon verses for a specific book and chapter."""
+    client = get_qdrant_client()
+    
+    try:
+        results = client.client.scroll(
+            collection_name=client.collection_name,
+            scroll_filter=Filter(
+                must=[
+                    FieldCondition(key="book_category", match=MatchValue(value="book_of_mormon")),
+                    FieldCondition(key="book", match=MatchValue(value=book)),
+                    FieldCondition(key="chapter", match=MatchValue(value=chapter))
+                ]
+            ),
+            limit=1000,
+            with_payload=True
+        )[0]
+        
+        verses = []
+        for result in results:
+            payload = result.payload
+            verses.append({
+                "reference": payload.get("canonical_reference", ""),
+                "verse": payload.get("verse", 0),
+                "text": payload.get("full_text", ""),
+                "author": payload.get("author", ""),
+                "literary_style": payload.get("literary_style", ""),
+                "christ_reference": payload.get("christ_reference", False),
+                "isaiah_parallel": payload.get("isaiah_parallel")
+            })
+        
+        # Sort by verse number
+        verses.sort(key=lambda x: x["verse"])
+        
+        return {
+            "book": book,
+            "chapter": chapter,
+            "total_verses": len(verses),
+            "verses": verses
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching BOM verses: {str(e)}")
+
+
+# ============================================================================
+# COMPARATIVE ANALYSIS ENDPOINTS (Torah ↔ Book of Mormon)
+# ============================================================================
+
+@app.get("/api/v1/comparative/semantic-similarity", tags=["comparative"])
+async def find_semantic_similarity(
+    source_text: str = Query(..., description="Source text to find similar passages for"),
+    source_corpus: str = Query("torah", description="Source corpus: 'torah' or 'book_of_mormon'"),
+    target_corpus: str = Query("book_of_mormon", description="Target corpus to search: 'torah' or 'book_of_mormon'"),
+    threshold: float = Query(0.7, description="Minimum similarity score (0-1)"),
+    limit: int = Query(10, description="Maximum number of results")
+) -> Dict[str, Any]:
+    """Find semantically similar passages between Torah and Book of Mormon."""
+    client = get_qdrant_client()
+    
+    try:
+        # Generate embedding for source text
+        from sentence_transformers import SentenceTransformer
+        model = SentenceTransformer('all-MiniLM-L6-v2')
+        query_embedding = model.encode(source_text).tolist()
+        
+        # Determine target book category
+        book_category = "book_of_mormon" if target_corpus == "book_of_mormon" else "torah"
+        
+        # Search for similar verses
+        search_results = client.client.search(
+            collection_name=client.collection_name,
+            query_vector=query_embedding,
+            query_filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="book_category",
+                        match=MatchValue(value=book_category)
+                    )
+                ]
+            ),
+            limit=limit * 2  # Get more results to filter by threshold
+        )
+        
+        # Filter by threshold and format results
+        similar_verses = []
+        for result in search_results:
+            if result.score >= threshold:
+                payload = result.payload
+                similar_verses.append({
+                    "reference": payload.get("canonical_reference", ""),
+                    "text": payload.get("full_text", ""),
+                    "book": payload.get("book", ""),
+                    "chapter": payload.get("chapter", 0),
+                    "verse": payload.get("verse", 0),
+                    "similarity_score": round(result.score, 4),
+                    "author": payload.get("author", payload.get("primary_source", "")),
+                    "literary_style": payload.get("literary_style", "")
+                })
+        
+        return {
+            "source_text": source_text,
+            "source_corpus": source_corpus,
+            "target_corpus": target_corpus,
+            "threshold": threshold,
+            "total_results": len(similar_verses),
+            "similar_passages": similar_verses[:limit]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error finding similar passages: {str(e)}")
+
+
+@app.get("/api/v1/comparative/statistics", tags=["comparative"])
+async def get_comparative_statistics() -> Dict[str, Any]:
+    """Get comparative statistics between Torah and Book of Mormon."""
+    client = get_qdrant_client()
+    
+    try:
+        # Get Torah stats
+        torah_results = client.client.scroll(
+            collection_name=client.collection_name,
+            scroll_filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="book_category",
+                        match=MatchValue(value="torah")
+                    )
+                ]
+            ),
+            limit=10000,
+            with_payload=True
+        )[0]
+        
+        # Get BOM stats
+        bom_results = client.client.scroll(
+            collection_name=client.collection_name,
+            scroll_filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="book_category",
+                        match=MatchValue(value="book_of_mormon")
+                    )
+                ]
+            ),
+            limit=10000,
+            with_payload=True
+        )[0]
+        
+        torah_books = set(r.payload.get("book") for r in torah_results)
+        bom_books = set(r.payload.get("book") for r in bom_results)
+        
+        torah_avg_length = sum(len(r.payload.get("full_text", "")) for r in torah_results) / len(torah_results) if torah_results else 0
+        bom_avg_length = sum(len(r.payload.get("full_text", "")) for r in bom_results) / len(bom_results) if bom_results else 0
+        
+        return {
+            "torah": {
+                "total_verses": len(torah_results),
+                "total_books": len(torah_books),
+                "books": sorted(torah_books),
+                "avg_verse_length": round(torah_avg_length, 1)
+            },
+            "book_of_mormon": {
+                "total_verses": len(bom_results),
+                "total_books": len(bom_books),
+                "books": sorted(bom_books),
+                "avg_verse_length": round(bom_avg_length, 1)
+            },
+            "comparison": {
+                "total_corpus_size": len(torah_results) + len(bom_results),
+                "verse_count_ratio": round(len(torah_results) / len(bom_results), 2) if bom_results else 0,
+                "avg_length_difference": round(bom_avg_length - torah_avg_length, 1)
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching comparative statistics: {str(e)}")
+
+
 @app.get("/", tags=["meta"])
 def root() -> Dict[str, Any]:
     """Lightweight status endpoint for health checks."""
@@ -1913,8 +2148,8 @@ def root() -> Dict[str, Any]:
 
     return {
         "service": "kjv-documentary-lens",
-        "version": "2.0",
-        "description": "Documentary Hypothesis Analysis with Enhanced Visualizations",
+        "version": "3.0",
+        "description": "Documentary Hypothesis Analysis + Book of Mormon Comparative Studies",
         "endpoints": [
             # Legacy endpoints
             {"path": "/doublets/flow", "description": "Layered Sankey + chord data"},
@@ -1926,17 +2161,24 @@ def root() -> Dict[str, Any]:
             {"path": "/api/v1/bird-eye/doublet-heatmap", "description": "Doublet distribution heatmap"},
             {"path": "/api/v1/bird-eye/source-dominance-matrix", "description": "Source dominance matrix"},
             {"path": "/api/v1/bird-eye/timeline", "description": "Source evolution timeline"},
-            # Verse-level endpoints (NEW)
+            # Verse-level endpoints
             {"path": "/api/v1/verses/by-chapter", "description": "Get all verses for a specific book/chapter"},
             {"path": "/api/v1/verses/search", "description": "Search and filter verses by multiple criteria"},
-            # Doublet analysis endpoints (NEW)
+            # Doublet analysis endpoints
             {"path": "/api/v1/doublets/compare", "description": "Side-by-side comparison of doublets"},
             {"path": "/api/v1/doublets/timeline", "description": "Chronological view of doublet occurrences"},
+            # Book of Mormon endpoints (NEW)
+            {"path": "/api/v1/bom/statistics", "description": "Book of Mormon statistics"},
+            {"path": "/api/v1/bom/verses/by-chapter", "description": "BOM verses by chapter"},
+            # Comparative analysis endpoints (NEW)
+            {"path": "/api/v1/comparative/semantic-similarity", "description": "Find similar passages between Torah and BOM"},
+            {"path": "/api/v1/comparative/statistics", "description": "Comparative corpus statistics"},
         ],
         "collection": collection_status,
         "frontends": [
             {"path": "/frontend/birds-eye-view.html", "description": "Bird's Eye View Dashboard"},
             {"path": "/frontend/verse-explorer.html", "description": "Interactive Verse Explorer"},
+            {"path": "/frontend/comparative-analysis.html", "description": "Torah ↔ Book of Mormon Comparative Analysis (COMING SOON)"},
         ]
     }
 
