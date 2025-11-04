@@ -633,6 +633,132 @@ class TorahSourceAILearner:
 - Cross-validation with academic sources
 - Continuous improvement based on model performance
 
+### 3.5 Source Vector Profiling: Conceptual DNA Analysis
+
+#### Overview
+
+**Revolutionary Feature**: Create vector profiles for each Documentary Hypothesis source (J, E, P, R) and discover which sections of the Book of Mormon (and later all biblical texts) match their "literary DNA."
+
+#### Core Concept
+
+Instead of only analyzing word clusters or character relationships, create **source-level vector profiles** that capture the distinctive literary, theological, and narrative characteristics of each Torah source:
+
+- **J Source Profile**: Anthropomorphic God depictions, personal narratives, southern/Judah perspective
+- **E Source Profile**: Transcendent God, prophetic focus, northern/Israel perspective
+- **P Source Profile**: Ritual/legal emphasis, priestly details, genealogical focus
+- **R Source Profile**: Editorial harmonization, composite narratives
+
+#### Technical Implementation
+
+```python
+class SourceVectorProfiler:
+    """Create and compare vector profiles for Documentary Hypothesis sources."""
+
+    def create_source_profile(self, source: str) -> np.ndarray:
+        """Create representative embedding for entire source corpus."""
+        # Extract ALL verses attributed to source
+        source_verses = get_all_verses_by_source(source, "torah")
+
+        # Generate embeddings for each verse
+        embeddings = [model.encode(verse) for verse in source_verses]
+
+        # Create representative source profile (average)
+        return np.mean(embeddings, axis=0)
+
+    def find_similar_sections(self, source_profile: np.ndarray,
+                            target_corpus: str, similarity_threshold: float = 0.6):
+        """Find sections in target corpus similar to source profile."""
+        # Search through target corpus
+        # Return ranked list of similar passages/sections
+        pass
+```
+
+#### Key Features
+
+##### 1. Source DNA Matching
+- **J Source Matching**: Find BOM sections with anthropomorphic, personal God depictions
+- **E Source Matching**: Identify prophetic, transcendent-focused passages
+- **P Source Matching**: Locate ritual/legal emphasis sections
+- **R Source Matching**: Discover editorial harmonization patterns
+
+##### 2. Author Attribution Analysis
+- **BOM Author Profiles**: Which BOM authors match which Torah sources?
+- **Cross-Traditional Patterns**: How ancient source styles appear in modern scripture
+- **Literary Evolution**: Track how source characteristics transform across traditions
+
+##### 3. Interactive Exploration
+- **Source Similarity Heatmap**: Visual matrix showing which BOM authors match which sources
+- **Profile Comparison**: Side-by-side comparison of source profiles
+- **Drill-Down Analysis**: Explore specific passages that match source patterns
+
+##### 4. Research Applications
+
+###### Scholarly Analysis
+- **Source Criticism**: New tools for identifying source patterns beyond Torah
+- **Comparative Literature**: How ancient Hebrew source styles influence other texts
+- **Theological Continuity**: Track theological themes across different traditions
+
+###### AI Learning
+- **Pattern Recognition**: Train models to recognize source-specific writing styles
+- **Authorship Attribution**: Identify authorial fingerprints in anonymous texts
+- **Style Transfer**: Generate text in specific source styles for educational purposes
+
+#### Example Insights
+
+**J Source (Anthropomorphic, Personal) ↔ BOM Authors:**
+```
+Top J-like BOM sections:
+1. 1 Nephi 1-4 (Nephi's personal narrative) - 0.87 similarity
+2. Alma 36-37 (Alma's conversion story) - 0.82 similarity
+3. 2 Nephi 4 (Lehi's farewell discourse) - 0.79 similarity
+```
+
+**P Source (Priestly, Ritual) ↔ BOM Authors:**
+```
+Top P-like BOM sections:
+1. Mosiah 25-26 (Mosiah's reforms) - 0.84 similarity
+2. Alma 13 (Melchizedek priesthood discourse) - 0.81 similarity
+3. 3 Nephi 11-18 (Christ's teachings) - 0.78 similarity
+```
+
+#### Implementation Phases
+
+##### Phase 1: Source Profile Creation (Week 1-2)
+- Extract source-attributed verses from Torah
+- Generate source vector profiles using sentence transformers
+- Validate profile quality and distinctiveness
+
+##### Phase 2: BOM Comparison (Week 3-4)
+- Compute similarities between source profiles and BOM verses
+- Group by author and literary style
+- Generate similarity matrices and rankings
+
+##### Phase 3: Advanced Analytics (Week 5-6)
+- Create interactive heatmaps and visualizations
+- Implement drill-down analysis capabilities
+- Add API endpoints for real-time queries
+
+##### Phase 4: Research Tools (Week 7-8)
+- Build comparative analysis framework
+- Add export capabilities for scholarly research
+- Integrate with existing visualization suite
+
+#### Success Metrics
+
+- **Profile Quality**: >0.8 average intra-source similarity, <0.5 inter-source similarity
+- **BOM Matching**: Identify 50+ significant source matches across BOM authors
+- **Research Impact**: Enable 10+ new comparative studies
+- **User Engagement**: 90% of researchers use source profiling features weekly
+
+#### Future Extensions
+
+- **Full Bible Expansion**: Extend to all 66 books (31,102 verses)
+- **Cross-Book Analysis**: Compare source patterns across different biblical books
+- **Multi-Source Profiles**: Analyze passages with mixed source attributions
+- **Temporal Analysis**: Track how source styles evolve chronologically
+
+This feature transforms source criticism from a Torah-only analysis into a comprehensive comparative framework, enabling unprecedented insights into how ancient Hebrew literary traditions manifest across different texts and traditions.
+
 ---
 
 ## Implementation Roadmap
