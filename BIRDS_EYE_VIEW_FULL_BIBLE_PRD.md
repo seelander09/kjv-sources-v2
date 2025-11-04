@@ -761,6 +761,149 @@ This feature transforms source criticism from a Torah-only analysis into a compr
 
 ---
 
+## Related Research & Innovative Applications
+
+### Vector Database Applications in Scriptural Analysis
+
+This section documents innovative approaches discovered through internet research on how vector databases and embeddings are being used in biblical/scriptural analysis. These serve as valuable references for future enhancements and potential collaborations.
+
+#### 1. Semantic Bible AI Research Environment (Robert McCoy, 2025)
+**Project**: Modular AI system for biblical research using semantic search and typological mapping
+**Key Innovations**:
+- Sentence-level embeddings for verse analysis
+- Typological pattern recognition across biblical books
+- Metadata-enriched verse indexing with theological context
+- King James Bible (1769) as AI-readable corpus
+**Technical Stack**: Vector similarity search, theological enrichment
+**URL**: https://robertemccoy.tech/wp-content/uploads/2025/04/Semantic-Bible-AI-Research-Environment-Using-Vector-Search-and-Theological-Enrichment.pdf
+
+#### 2. Bible Embeddings Project (GitHub: van-william)
+**Project**: Chapter and book-level vector embeddings with advanced clustering analysis
+**Key Innovations**:
+- Hierarchical chunking: Verses → Chapters → Books → Testaments
+- Neon database with vector search capabilities
+- t-SNE clustering for book relationship visualization
+- Author groupings and literary genre classification
+- Interactive web visualization with zoom/pan
+**Analysis Features**: Testament separation, book categories, network analysis, chapter progression
+**URL**: https://github.com/van-william/bible-embeddings
+
+#### 3. ScriptureLM: AI-Powered Bible Study (Anubhav Singh, Medium 2025)
+**Project**: FastAPI-based semantic search with LLM summarization
+**Key Innovations**:
+- FAISS vector search for semantic verse retrieval
+- SentenceTransformer embeddings (all-MiniLM-L6-v2)
+- LongT5 for commentary summarization
+- Recursive summarization for lengthy theological texts
+- Integration with church fathers' commentaries
+**Technical Pipeline**: Embeddings → FAISS indexing → Retrieval → LLM Summarization
+**URL**: https://medium.com/@anubhavsingh1729/building-scripturelm-ai-powered-bible-study-with-semantic-search-and-summarization-b0b40e27daf3
+
+#### 4. Vector Hermeneutics (James E. Dobson, Digital Scholarship in the Humanities 2022)
+**Project**: Theoretical framework for interpreting vector space models in humanities
+**Key Innovations**:
+- Document-term matrices for lexical analysis
+- Neural language models for semantic understanding
+- Multi-level hermeneutics for computational literary studies
+- Humanistic interpretation of mathematical models
+**Contribution**: Methodology for interpreting vector representations in biblical studies
+**URL**: https://academic.oup.com/dsh/article/37/1/81/6372158
+
+#### 5. Computational Linguistic Analysis of Biblical Texts (Willem van Peursen et al.)
+**Project**: Comprehensive survey of AI applications in biblical analysis
+**Key Innovations**:
+- Cognitive linguistics, functional grammar integration
+- Historical linguistics with computational methods
+- Complexity theory applications to biblical texts
+- Iterative development of computational biblical scholarship
+**Coverage**: Early beginnings through 2022 developments
+**URL**: https://books.openbookpublishers.com/10.11647/obp.0358.05.pdf
+
+#### 6. ETCBC (Eep Talstra Centre for Bible and Computer)
+**Project**: Advanced computational linguistics for Hebrew Bible analysis
+**Key Innovations**:
+- Transformer-based models for Hebrew text analysis
+- Historical language model adaptation
+- Paleography and codicology applications
+- Cross-lingual training (Hebrew + Syriac)
+- Zero-shot/few-shot learning approaches
+**URL**: https://etcbc.nl/bible/recent-developments-in-the-computational-analysis-of-the-bible/
+
+#### 7. Bible Vector Search (GitHub: tim-hub)
+**Project**: AI embedding technology for meaning-based Bible verse search
+**Key Innovations**:
+- Semantic search vs. keyword matching
+- BBE translation corpus analysis
+- RESTful API for embedding-based queries
+- Meaning-based verse retrieval
+**URL**: https://github.com/tim-hub/bible-vector-search
+
+#### 8. Computational Stylistics & Authorship Attribution
+**Research Area**: Vector-based author fingerprinting in biblical texts
+**Applications**:
+- Pauline vs. Petrine epistle analysis
+- Gospel authorship attribution
+- Historical linguistics evolution tracking
+- Stylometric analysis of disputed texts
+**Methods**: Function word signatures, syntactic patterns, vocabulary richness metrics
+
+#### 9. Intertextuality Networks & Allusion Detection
+**Research Area**: Vector-based discovery of textual relationships
+**Applications**:
+- NT allusions to OT automatic detection
+- Manuscript variant analysis using embeddings
+- Cross-cultural textual relationship mapping
+- Citation network analysis in biblical literature
+**Techniques**: Similarity networks, embedding clustering, cross-reference mapping
+
+#### 10. Industry Bible Software Applications
+**Platforms**:
+- **Bible Gateway/YouVersion**: Semantic search capabilities
+- **Logos Bible Software**: AI-powered research assistant
+- **Olive Tree Bible Software**: Cross-reference suggestions with vectors
+- **Accordance**: Database-driven analysis with embedding features
+- **BibleWorks**: Linguistic analysis with vector enhancements
+
+### Key Trends & Future Directions
+
+#### Multi-Modal Biblical Analysis
+- Text + manuscript image analysis
+- Audio liturgical recording analysis
+- Cultural context vector integration
+
+#### Advanced ML Techniques
+- BERT/GPT fine-tuning on biblical corpora
+- Multilingual embeddings for comparative studies
+- Unsupervised topic modeling of biblical themes
+- Anomaly detection in manuscript traditions
+
+#### Cross-Traditional Applications
+- Torah → New Testament allusion detection
+- Biblical → Quranic intertextuality mapping
+- Ancient → modern translation comparison
+- Multi-religious comparative theology
+
+### Our Project's Unique Contributions
+
+Compared to these approaches, our system provides:
+
+1. **Documentary Hypothesis Vectorization**: Source-level profiling (J/E/P/R attribution)
+2. **Dual Analysis Framework**: Mathematical stylistics + semantic embeddings
+3. **Cross-Traditional Bridging**: Torah ↔ Book of Mormon vector relationships
+4. **Interactive Research Platform**: Real-time API with visualization dashboard
+5. **Extensible Architecture**: Framework for adding new corpora and analysis methods
+
+### Potential Collaborations & Extensions
+
+Future iterations could explore:
+- Integration with Bible Embeddings Project for broader corpus analysis
+- Collaboration with ETCBC for Hebrew language model improvements
+- Partnership with ScriptureLM for enhanced summarization capabilities
+- Cross-pollination with vector hermeneutics methodologies
+- Extension to other religious traditions using similar vector approaches
+
+---
+
 ## Implementation Roadmap
 
 ### Phase 1: Bird's Eye View (Months 1-2)
