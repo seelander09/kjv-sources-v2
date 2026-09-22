@@ -33,7 +33,27 @@ The project analyzes five main source traditions with specific color mappings:
 - Git
 - Docker (optional, for vector database services)
 
-### Installation
+### Get the project up and running (Windows PowerShell)
+
+1. **First time only – fetch and parse source data (then load into local Qdrant):**
+   ```powershell
+   python kjv_pipeline.py
+   ```
+   When prompted, you can skip or accept Qdrant setup; the script below will load data into local `qdrant_data` when needed.
+
+2. **Start API + dashboard (installs deps, ensures Qdrant data, starts servers):**
+   ```powershell
+   .\run_project.ps1
+   ```
+   Then open:
+   - **Dashboard:** http://localhost:8080/index.html  
+   - **API docs:** http://localhost:8001/docs  
+
+   To stop: `Get-Job | Stop-Job; Get-Job | Remove-Job`
+
+   Options: `-SkipDeps` (skip pip install), `-SkipData` (skip Qdrant check/upload).
+
+### Manual installation and run
 
 1. **Clone the repository:**
    ```bash
@@ -43,24 +63,27 @@ The project analyzes five main source traditions with specific color mappings:
 
 2. **Install dependencies:**
    ```bash
-   # Main dependencies
    pip install -r requirements.txt
-   
-   # API dependencies (if using FastAPI server)
    pip install -r api_requirements.txt
-   
-   # LightRAG dependencies (if using LightRAG)
-   pip install -r lightrag_requirements.txt
    ```
 
-3. **Run the pipeline:**
+3. **Run the pipeline (first time, to create output/ and optionally Qdrant):**
    ```bash
-   # Windows
    python kjv_pipeline.py
-   
-   # Or use the CLI
-   python kjv_cli.py view genesis
    ```
+
+4. **Ensure local Qdrant has data (if you use local Qdrant and bird-eye dashboard):**
+   ```bash
+   python ensure_qdrant_data.py
+   ```
+
+5. **Start API and dashboard:**
+   ```powershell
+   .\start_api_server.ps1
+   # In another terminal:
+   .\start_birds_eye_dashboard.ps1
+   ```
+   Or use `.\run_project.ps1` to start both from one script.
 
 ## 📚 Available Books
 
@@ -107,7 +130,7 @@ Start the API server for semantic search and visualization endpoints:
 python -m uvicorn src.kjv_sources.api:app --reload --port 8001
 
 # Or use Docker Compose
-docker-compose --profile qdrant --profile api up
+docker-compose up
 ```
 
 The API provides endpoints for:
@@ -117,18 +140,42 @@ The API provides endpoints for:
 - Doublet detection and visualization
 - Documentary hypothesis timeline data
 
-See `RAG_API_GUIDE.md` for detailed API documentation.
+See `RAG_API_GUIDE.md` for detailed API documentation and current security/runtime settings.
+
+### Bird's Eye Dashboard Prototype
+
+A minimal frontend prototype is available in `frontend/` with:
+- Global filters (book + source toggles)
+- Source stratigraphy chart (`/api/v1/bird-eye/source-stratigraphy`)
+- Source dominance matrix (`/api/v1/bird-eye/source-dominance-matrix`)
+- Doublet heatmap (`/api/v1/bird-eye/doublet-heatmap`)
+- Source contribution timeline (`/api/v1/doublets/source-contribution-timeline`)
+- Chapter drilldown with side-by-side compare fetches (`/api/v1/doublets/compare`)
+
+Start it with:
+
+```powershell
+.\start_birds_eye_dashboard.ps1
+```
+
+Then open:
+- `http://localhost:8080/index.html`
 
 ### Vector Database Setup
 
-The project uses Qdrant for semantic search. To set up:
+The project uses Qdrant for semantic search.
 
-1. **Start Qdrant:**
+1. **Start Qdrant and API (containerized):**
    ```bash
-   docker-compose --profile qdrant up -d
+   docker-compose up
    ```
 
-2. **Ingest data:**
+2. **Or local API + local embedded Qdrant data path:**
+   ```powershell
+   .\run_project.ps1
+   ```
+
+3. **Ingest data when needed:**
    ```bash
    python lightrag_ingestion.py
    ```
@@ -182,6 +229,11 @@ These directories should remain local and are not pushed to GitHub. The pipeline
 ```bash
 python -m pytest tests/
 ```
+
+### CI and Security
+
+- GitHub Actions runs lint, tests, and secret scanning on pushes and PRs.
+- Copy `.env.example` to `.env` and fill values for optional cloud/API-key settings.
 
 ### Code Style
 
@@ -247,6 +299,7 @@ The project uses Qdrant for semantic search, storing:
 - `RAG_API_GUIDE.md` - API usage guide
 - `QDRANT_GUIDE.md` - Qdrant setup and usage
 - `LIGHTRAG_GUIDE.md` - LightRAG integration
+- `VISUALIZATION_IMPLEMENTATION_PLAYBOOK.md` - Dashboard blueprint, tool matrix, and API contract checklist for Bird's Eye implementation
 
 ## 🤝 Contributing
 
