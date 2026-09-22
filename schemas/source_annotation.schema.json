@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kjv-sources.local/schemas/source_annotation.schema.json",
+  "title": "SourceAnnotation",
+  "type": "object",
+  "required": [
+    "reference",
+    "book",
+    "chapter",
+    "verse",
+    "primary_source",
+    "source_confidence_scores",
+    "review"
+  ],
+  "properties": {
+    "reference": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9 ]+\\s+\\d+:\\d+$"
+    },
+    "book": {
+      "type": "string"
+    },
+    "chapter": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "verse": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "primary_source": {
+      "type": "string",
+      "enum": ["J", "E", "P", "D", "R", "UNKNOWN"]
+    },
+    "source_confidence_scores": {
+      "type": "object",
+      "required": ["J", "E", "P", "D", "R"],
+      "properties": {
+        "J": { "type": "number", "minimum": 0, "maximum": 1 },
+        "E": { "type": "number", "minimum": 0, "maximum": 1 },
+        "P": { "type": "number", "minimum": 0, "maximum": 1 },
+        "D": { "type": "number", "minimum": 0, "maximum": 1 },
+        "R": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "review": {
+      "type": "object",
+      "required": ["reviewer_id", "confidence", "status", "rationale", "reviewed_at"],
+      "properties": {
+        "reviewer_id": { "type": "string" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "status": { "type": "string", "enum": ["accepted", "rejected", "needs_review"] },
+        "rationale": { "type": "string", "minLength": 3 },
+        "reviewed_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
