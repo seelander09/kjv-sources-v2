@@ -161,6 +161,22 @@ Start it with:
 Then open:
 - `http://localhost:8080/index.html`
 
+### Torah Source Atlas (viz/)
+
+A self-contained, layperson-readable visualization of source authorship across the whole
+Pentateuch — a bird's-eye replacement for the hard-to-read Wikipedia source-distribution
+diagrams. All five books are drawn to scale as horizontal strips with chapter divisions;
+every verse is colored by its attributed hand (J, E, P, D, R), mixed verses are stacked
+proportionally, clicking a chapter opens a verse grid, and clicking a verse shows each
+hand's actual words with word-share percentages. Colorblind-safe palette, light and dark
+themes, works on a phone.
+
+- `viz/index.html` — the finished page, with the full 5,852-verse dataset embedded; open
+  it directly in a browser (no server needed).
+- `viz/build_data.py` — regenerates `viz/data.json` from `output/<Book>/<Book>.csv` and
+  re-injects it into `index.html`. Run after a pipeline re-run: `py -3 viz/build_data.py`
+- Published artifact: https://claude.ai/artifact/92TUdq87urGuJsQhKj9Jng
+
 ### Vector Database Setup
 
 The project uses Qdrant for semantic search.
