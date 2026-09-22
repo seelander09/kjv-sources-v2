@@ -127,6 +127,16 @@ def create_csv_exports(python_cmd):
     
     print("✅ CSV exports completed")
 
+
+def run_data_quality_checks(python_cmd):
+    """Run post-export data quality checks."""
+    print("\n[QUALITY] Running data quality checks...")
+    if not run_command(f"{python_cmd} validate_data_quality.py", "Validating output data quality"):
+        print("❌ Data quality checks failed")
+        return False
+    print("✅ Data quality checks passed")
+    return True
+
 def setup_qdrant(python_cmd):
     """Set up Qdrant vector database."""
     print("\n[QDRANT SETUP] Setting up Qdrant vector database...")
@@ -192,6 +202,11 @@ def main():
     
     # Create CSV exports
     create_csv_exports(python_cmd)
+
+    # Validate generated outputs
+    if not run_data_quality_checks(python_cmd):
+        print("❌ Data quality validation failed. Exiting.")
+        return
     
     # Show summary
     show_data_summary(python_cmd)

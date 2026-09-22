@@ -1,12 +1,16 @@
 """FastAPI application exposing visualization-friendly endpoints for the KJV sources project."""
 
 import json
+import logging
+import os
+import time
 from collections import Counter, defaultdict
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request, status
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
@@ -17,6 +21,7 @@ BOOK_ORDER = ["Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy"]
 BOOK_INDEX = {book: index for index, book in enumerate(BOOK_ORDER)}
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 GEO_RESULTS_PATTERN = "torah_geographical_results_*.json"
+logger = logging.getLogger(__name__)
 
 SOURCE_CENTROIDS = {
     "J": {"name": "Jahwist Heartland (Judah)", "lat": 31.7767, "lon": 35.2345},
@@ -83,23 +88,100 @@ app = FastAPI(
 )
 
 
-ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:8001",
-    "http://127.0.0.1:8001",
-    "http://localhost:8080",  # Frontend HTTP server
-    "http://127.0.0.1:8080",
-    "null",  # Allow file:// protocol
-]
+def _parse_allowed_origins() -> List[str]:
+    configured = os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8001,http://127.0.0.1:8001,http://localhost:8080,http://127.0.0.1:8080",
+    )
+    origins = [origin.strip() for origin in configured.split(",") if origin.strip()]
+    if os.getenv("ALLOW_FILE_ORIGIN", "false").lower() == "true":
+        origins.append("null")
+    return origins
+
+
+ALLOWED_ORIGINS = _parse_allowed_origins()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
+
+RATE_LIMIT_REQUESTS = int(os.getenv("RATE_LIMIT_REQUESTS", "120"))
+RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+REQUIRE_API_KEY = os.getenv("REQUIRE_API_KEY", "false").lower() == "true"
+API_KEY_VALUE = os.getenv("KJV_API_KEY", "")
+_rate_limit_buckets: Dict[str, List[float]] = defaultdict(list)
+
+
+def _is_protected_path(path: str) -> bool:
+    return path.startswith("/api/") or path in {"/doublets/flow", "/timeline/documentary-lens", "/geography/pov"}
+
+
+@app.middleware("http")
+async def security_middleware(request: Request, call_next):
+    client_host = request.client.host if request.client else "unknown"
+    now = time.time()
+
+    if _is_protected_path(request.url.path):
+        if REQUIRE_API_KEY:
+            provided_key = request.headers.get("X-API-Key")
+            if not API_KEY_VALUE or provided_key != API_KEY_VALUE:
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={"detail": "Unauthorized"},
+                )
+
+        bucket = _rate_limit_buckets[client_host]
+        cutoff = now - RATE_LIMIT_WINDOW_SECONDS
+        bucket[:] = [ts for ts in bucket if ts >= cutoff]
+        if len(bucket) >= RATE_LIMIT_REQUESTS:
+            return JSONResponse(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                content={"detail": "Rate limit exceeded"},
+            )
+        bucket.append(now)
+
+    return await call_next(request)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled API error on %s", request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+
+def _server_error(message: str, exc: Exception) -> HTTPException:
+    logger.exception("%s: %s", message, exc)
+    return HTTPException(status_code=500, detail=message)
+
+
+ML_RESPONSE_CACHE: Dict[str, Dict[str, Any]] = {}
+
+
+def _collection_cache_stamp(client: KJVQdrantClient) -> str:
+    try:
+        stats = client.get_collection_stats()
+        return str(stats.get("total_points", 0))
+    except Exception:
+        return "unknown"
+
+
+def _cache_key(prefix: str, **kwargs: Any) -> str:
+    parts = [prefix] + [f"{key}={kwargs[key]}" for key in sorted(kwargs.keys())]
+    return "|".join(parts)
+
+
+def _parse_chapter_range(chapter_range: Optional[str]) -> Tuple[Optional[int], Optional[int]]:
+    if not chapter_range:
+        return None, None
+    if "-" not in chapter_range:
+        value = int(chapter_range.strip())
+        return value, value
+    start_raw, end_raw = chapter_range.split("-", maxsplit=1)
+    return int(start_raw.strip()), int(end_raw.strip())
 
 @lru_cache(maxsize=1)
 def _cached_client() -> KJVQdrantClient:
@@ -114,7 +196,8 @@ def get_qdrant_client() -> KJVQdrantClient:
     try:
         return _cached_client()
     except Exception as exc:  # pragma: no cover - defensive guard
-        raise HTTPException(status_code=503, detail=f"Qdrant client unavailable: {exc}") from exc
+        logger.exception("Qdrant client unavailable")
+        raise HTTPException(status_code=503, detail="Qdrant client unavailable") from exc
 
 
 def _prepare_source_codes(stats: Dict[str, Any]) -> List[str]:
@@ -768,6 +851,8 @@ def build_source_stratigraphy_data(
             with_payload=True
         )[0]
         
+        chapter_start, chapter_end = _parse_chapter_range(chapter_range)
+
         # Organize by book -> chapter -> verse
         book_chapter_data: Dict[str, Dict[int, List[Dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
         
@@ -778,6 +863,9 @@ def build_source_stratigraphy_data(
             
             if book and verse_book != book:
                 continue
+            if chapter_start is not None and chapter_end is not None:
+                if chapter < chapter_start or chapter > chapter_end:
+                    continue
             
             sources_list = client._parse_sources_field(
                 payload.get("sources"),
@@ -827,11 +915,12 @@ def build_source_stratigraphy_data(
             "meta": {
                 "total_chapters": len(stratigraphy_data),
                 "filter_book": book,
-                "filter_chapter_range": chapter_range
+                "filter_chapter_range": chapter_range,
+                "chapter_range_applied": chapter_start is not None and chapter_end is not None,
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error building stratigraphy data: {str(e)}")
+        raise _server_error("Error building stratigraphy data", e)
 
 
 def build_source_dominance_matrix(client: KJVQdrantClient) -> Dict[str, Any]:
@@ -880,11 +969,12 @@ def build_source_dominance_matrix(client: KJVQdrantClient) -> Dict[str, Any]:
             "sources": DEFAULT_SOURCES,
             "meta": {
                 "total_books": len(matrix_data),
-                "total_verses": sum(book_total_verses.values())
+                "total_verses": sum(book_total_verses.values()),
+                "sort_mode": "canonical",
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error building dominance matrix: {str(e)}")
+        raise _server_error("Error building dominance matrix", e)
 
 
 def build_doublet_heatmap_data(client: KJVQdrantClient, category: Optional[str] = None) -> Dict[str, Any]:
@@ -946,6 +1036,11 @@ def build_doublet_heatmap_data(client: KJVQdrantClient, category: Optional[str] 
                     "book": book,
                     "chapter": chapter_num,
                     "doublet_count": chapter_data["doublet_count"],
+                    "complexity_score": round(
+                        chapter_data["doublet_count"]
+                        * max(1, len(chapter_data["source_composition"].keys())) / 10.0,
+                        3,
+                    ),
                     "source_composition": dict(chapter_data["source_composition"]),
                     "doublets": chapter_data["doublets"]
                 })
@@ -960,7 +1055,7 @@ def build_doublet_heatmap_data(client: KJVQdrantClient, category: Optional[str] 
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error building doublet heatmap: {str(e)}")
+        raise _server_error("Error building doublet heatmap", e)
 
 
 @app.get("/api/v1/bird-eye/source-stratigraphy", tags=["bird-eye"])
@@ -1086,7 +1181,7 @@ async def get_verses_by_chapter(
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching verses: {str(e)}")
+        raise _server_error("Error fetching verses", e)
 
 
 def _calculate_source_distribution(verses: List[Dict[str, Any]]) -> Dict[str, int]:
@@ -1171,7 +1266,7 @@ async def get_doublet_comparison(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error comparing doublets: {str(e)}")
+        raise _server_error("Error comparing doublets", e)
 
 
 def _format_verse_for_comparison(payload: Dict[str, Any], client: KJVQdrantClient) -> Dict[str, Any]:
@@ -1275,9 +1370,27 @@ async def get_doublet_timeline() -> Dict[str, Any]:
         for doublet in doublets:
             for name in doublet.get("doublet_names", ["Unknown"]):
                 doublet_groups[name].append(doublet)
+
+        timeline_events = []
+        for item in doublets:
+            timeline_events.append(
+                {
+                    "event_type": "doublet_verse",
+                    "canonical_order": item["canonical_order"],
+                    "reference": item["reference"],
+                    "book": item["book"],
+                    "chapter": item["chapter"],
+                    "verse": item["verse"],
+                    "sources": item["sources"],
+                    "doublet_names": item["doublet_names"],
+                    "doublet_categories": item["doublet_categories"],
+                    "themes": item["doublet_themes"],
+                }
+            )
         
         return {
             "doublets": doublets,
+            "timeline_events": timeline_events,
             "doublet_groups": dict(doublet_groups),
             "total_doublets": len(doublets),
             "unique_doublet_names": len(doublet_groups),
@@ -1287,7 +1400,7 @@ async def get_doublet_timeline() -> Dict[str, Any]:
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching doublet timeline: {str(e)}")
+        raise _server_error("Error fetching doublet timeline", e)
 
 
 @app.get("/api/v1/doublets/source-contribution-timeline", tags=["doublets"])
@@ -1392,9 +1505,26 @@ async def get_source_contribution_timeline() -> Dict[str, Any]:
         
         # Sort by canonical order
         timeline_events.sort(key=lambda x: x["canonical_order"])
+
+        normalized_events = []
+        for item in timeline_events:
+            normalized_events.append(
+                {
+                    "event_type": "doublet_group",
+                    "canonical_order": item["canonical_order"],
+                    "reference": item["reference_range"],
+                    "book": item["book"],
+                    "chapter": item["chapter_start"],
+                    "sources": item["sources"],
+                    "themes": item["themes"],
+                    "categories": item["categories"],
+                    "doublet_name": item["doublet_name"],
+                }
+            )
         
         return {
             "timeline_events": timeline_events,
+            "events": normalized_events,
             "total_events": len(timeline_events),
             "meta": {
                 "total_doublet_verses": len(doublets),
@@ -1403,7 +1533,7 @@ async def get_source_contribution_timeline() -> Dict[str, Any]:
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching source contribution timeline: {str(e)}")
+        raise _server_error("Error fetching source contribution timeline", e)
 
 
 @app.get("/api/v1/ml/embedding-projection", tags=["ml-insights"])
@@ -1414,6 +1544,19 @@ async def get_embedding_projection(
 ) -> Dict[str, Any]:
     """Get 2D embedding projection of doublet verses using t-SNE or UMAP."""
     try:
+        client = get_qdrant_client()
+        cache_stamp = _collection_cache_stamp(client)
+        response_cache_key = _cache_key(
+            "embedding-projection",
+            method=method.lower(),
+            perplexity=perplexity,
+            n_neighbors=n_neighbors,
+            collection=cache_stamp,
+        )
+        cached = ML_RESPONSE_CACHE.get(response_cache_key)
+        if cached:
+            return cached
+
         from sentence_transformers import SentenceTransformer
         from sklearn.manifold import TSNE
         import numpy as np
@@ -1426,8 +1569,6 @@ async def get_embedding_projection(
                 umap_available = True
             except ImportError:
                 raise HTTPException(status_code=400, detail="UMAP not installed. Use method='tsne' or install umap-learn")
-        
-        client = get_qdrant_client()
         
         # Get all doublet verses
         all_results = client.client.scroll(
@@ -1494,23 +1635,27 @@ async def get_embedding_projection(
                 "doublet_themes": verse["doublet_themes"]
             })
         
-        return {
+        response = {
             "method": method.lower(),
             "total_points": len(points),
             "points": points,
             "meta": {
                 "embedding_model": "all-MiniLM-L6-v2",
                 "embedding_dim": 384,
+                "cache_key": response_cache_key,
+                "collection_stamp": cache_stamp,
                 "projection_params": {
                     "perplexity": perplexity if method.lower() == "tsne" else None,
                     "n_neighbors": n_neighbors if method.lower() == "umap" else None
                 }
             }
         }
+        ML_RESPONSE_CACHE[response_cache_key] = response
+        return response
     except ImportError as e:
         raise HTTPException(status_code=500, detail=f"Missing dependency: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating embedding projection: {str(e)}")
+        raise _server_error("Error generating embedding projection", e)
 
 
 @app.get("/api/v1/ml/similarity-network", tags=["ml-insights"])
@@ -1520,16 +1665,25 @@ async def get_similarity_network(
 ) -> Dict[str, Any]:
     """Get network graph of doublet relationships based on semantic similarity."""
     try:
+        client = get_qdrant_client()
+        cache_stamp = _collection_cache_stamp(client)
+        response_cache_key = _cache_key(
+            "similarity-network",
+            similarity_threshold=similarity_threshold,
+            max_edges=max_edges,
+            collection=cache_stamp,
+        )
+        cached = ML_RESPONSE_CACHE.get(response_cache_key)
+        if cached:
+            return cached
+
         from sentence_transformers import SentenceTransformer
-        import numpy as np
         
         # Try to import networkx
         try:
             import networkx as nx
         except ImportError:
             raise HTTPException(status_code=400, detail="NetworkX not installed")
-        
-        client = get_qdrant_client()
         
         # Get doublet events (grouped)
         all_results = client.client.scroll(
@@ -1619,17 +1773,21 @@ async def get_similarity_network(
         except:
             community_map = {node: 0 for node in G.nodes()}
         
+        layout = nx.spring_layout(G, seed=42) if G.number_of_nodes() > 0 else {}
+
         # Build response
         nodes = []
         for node in G.nodes():
             data = G.nodes[node]
+            coords = layout.get(node, [0.0, 0.0])
             nodes.append({
                 "id": node,
                 "label": node,
                 "size": data.get("size", 1),
                 "sources": data.get("sources", []),
                 "primary_source": data.get("primary_source", "Unknown"),
-                "community": community_map.get(node, 0)
+                "community": community_map.get(node, 0),
+                "layout": {"x": float(coords[0]), "y": float(coords[1])},
             })
         
         edges = []
@@ -1640,7 +1798,7 @@ async def get_similarity_network(
                 "weight": data.get("weight", 0.0)
             })
         
-        return {
+        response = {
             "nodes": nodes,
             "edges": edges,
             "total_nodes": len(nodes),
@@ -1649,13 +1807,18 @@ async def get_similarity_network(
             "meta": {
                 "similarity_threshold": similarity_threshold,
                 "max_edges_requested": max_edges,
-                "embedding_model": "all-MiniLM-L6-v2"
+                "embedding_model": "all-MiniLM-L6-v2",
+                "layout": "spring",
+                "cache_key": response_cache_key,
+                "collection_stamp": cache_stamp,
             }
         }
+        ML_RESPONSE_CACHE[response_cache_key] = response
+        return response
     except ImportError as e:
         raise HTTPException(status_code=500, detail=f"Missing dependency: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating similarity network: {str(e)}")
+        raise _server_error("Error generating similarity network", e)
 
 
 @app.get("/api/v1/ml/feature-analysis", tags=["ml-insights"])
@@ -1663,6 +1826,11 @@ async def get_feature_analysis() -> Dict[str, Any]:
     """Get multi-dimensional feature analysis for doublet events."""
     try:
         client = get_qdrant_client()
+        cache_stamp = _collection_cache_stamp(client)
+        response_cache_key = _cache_key("feature-analysis", collection=cache_stamp)
+        cached = ML_RESPONSE_CACHE.get(response_cache_key)
+        if cached:
+            return cached
         
         # Get all doublet verses
         all_results = client.client.scroll(
@@ -1781,17 +1949,27 @@ async def get_feature_analysis() -> Dict[str, Any]:
             {"key": "structural_features.complexity", "label": "Complexity", "type": "numeric"}
         ]
         
-        return {
+        response = {
             "features": features_data,
             "dimensions": feature_dimensions,
             "total_doublets": len(features_data),
             "meta": {
                 "feature_types": ["source_distribution", "vocabulary", "themes", "structural"],
-                "description": "Multi-dimensional feature analysis for parallel coordinates visualization"
+                "description": "Multi-dimensional feature analysis for parallel coordinates visualization",
+                "feature_taxonomy": {
+                    "source_distribution": "Relative source composition percentages",
+                    "vocabulary": "Keyword-based lexical proxy scores by source",
+                    "themes": "Most common tagged doublet themes",
+                    "structural": "Average length and complexity metrics",
+                },
+                "cache_key": response_cache_key,
+                "collection_stamp": cache_stamp,
             }
         }
+        ML_RESPONSE_CACHE[response_cache_key] = response
+        return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating feature analysis: {str(e)}")
+        raise _server_error("Error generating feature analysis", e)
 
 
 @app.get("/api/v1/verses/search", tags=["verses"])
@@ -1893,7 +2071,7 @@ async def search_verses(
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error searching verses: {str(e)}")
+        raise _server_error("Error searching verses", e)
 
 
 # ============================================================================
@@ -1948,7 +2126,7 @@ async def get_bom_statistics() -> Dict[str, Any]:
             "isaiah_parallels": isaiah_refs
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching BOM statistics: {str(e)}")
+        raise _server_error("Error fetching BOM statistics", e)
 
 
 @app.get("/api/v1/bom/verses/by-chapter", tags=["book-of-mormon"])
@@ -1996,7 +2174,7 @@ async def get_bom_verses_by_chapter(
             "verses": verses
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching BOM verses: {str(e)}")
+        raise _server_error("Error fetching BOM verses", e)
 
 
 # ============================================================================
@@ -2063,7 +2241,7 @@ async def find_semantic_similarity(
             "similar_passages": similar_verses[:limit]
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error finding similar passages: {str(e)}")
+        raise _server_error("Error finding similar passages", e)
 
 
 @app.get("/api/v1/comparative/statistics", tags=["comparative"])
@@ -2128,7 +2306,25 @@ async def get_comparative_statistics() -> Dict[str, Any]:
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching comparative statistics: {str(e)}")
+        raise _server_error("Error fetching comparative statistics", e)
+
+
+@app.get("/health", tags=["meta"])
+def health() -> Dict[str, Any]:
+    """Basic process-level health check."""
+    return {"status": "ok", "service": "kjv-documentary-lens"}
+
+
+@app.get("/ready", tags=["meta"])
+def readiness() -> Dict[str, Any]:
+    """Dependency readiness check for Qdrant collection availability."""
+    client = get_qdrant_client()
+    stats = client.get_collection_stats()
+    return {
+        "status": "ready",
+        "collection_name": stats.get("collection_name"),
+        "total_points": stats.get("total_points", 0),
+    }
 
 
 @app.get("/", tags=["meta"])
@@ -2151,6 +2347,8 @@ def root() -> Dict[str, Any]:
         "version": "3.0",
         "description": "Documentary Hypothesis Analysis + Book of Mormon Comparative Studies",
         "endpoints": [
+            {"path": "/health", "description": "Liveness health check"},
+            {"path": "/ready", "description": "Qdrant readiness check"},
             # Legacy endpoints
             {"path": "/doublets/flow", "description": "Layered Sankey + chord data"},
             {"path": "/timeline/documentary-lens", "description": "Documentary lens stacked timeline"},

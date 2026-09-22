@@ -1724,10 +1724,21 @@ def create_qdrant_client(use_local: bool = True) -> KJVQdrantClient:
     if use_local:
         # Use local file-based Qdrant instance
         return KJVQdrantClient(use_local=True)
-    else:
-        # Use cloud Qdrant instance (if needed)
-        API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.4r0SK3yIac0KN8iw8RcO2pfTYqXLsv_m01WV5SFaio4"
-        CLUSTER_ID = "6ee24530-ebe8-4553-b5db-f554e567969c"
-        ENDPOINT = "https://6ee24530-ebe8-4553-b5db-f554e567969c.us-east4-0.gcp.cloud.qdrant.io"
-        
-        return KJVQdrantClient(use_local=False, api_key=API_KEY, cluster_id=CLUSTER_ID, endpoint=ENDPOINT) 
+
+    # Use cloud Qdrant instance configured via environment variables.
+    api_key = os.getenv("QDRANT_API_KEY")
+    endpoint = os.getenv("QDRANT_ENDPOINT")
+    cluster_id = os.getenv("QDRANT_CLUSTER_ID", "cloud")
+
+    if not api_key or not endpoint:
+        raise ValueError(
+            "Cloud Qdrant configuration is incomplete. "
+            "Set QDRANT_API_KEY and QDRANT_ENDPOINT environment variables."
+        )
+
+    return KJVQdrantClient(
+        use_local=False,
+        api_key=api_key,
+        cluster_id=cluster_id,
+        endpoint=endpoint,
+    )

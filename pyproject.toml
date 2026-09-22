@@ -1,0 +1,17 @@
+[tool.pytest.ini_options]
+pythonpath = [".", "src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+exclude = [
+  "output",
+  "qdrant_data",
+  "lightrag_data",
+  "wiki_markdown",
+  "scriptural_truth_data",
+]
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82"]
