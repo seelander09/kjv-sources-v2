@@ -171,11 +171,33 @@ proportionally, clicking a chapter opens a verse grid, and clicking a verse show
 hand's actual words with word-share percentages. Colorblind-safe palette, light and dark
 themes, works on a phone.
 
-- `viz/index.html` — the finished page, with the full 5,852-verse dataset embedded; open
-  it directly in a browser (no server needed).
+The page now carries four views of the same dataset, switched by tabs:
+
+1. **Block atlas** — the original strip map: five books to scale, every verse colored by
+   hand, click-through to a verse grid and each hand's actual words.
+2. **Braided stream** — each hand as one continuous ribbon flowing Genesis to Deuteronomy;
+   thickness is that hand's word share per chapter (smoothed, with lane-swap hysteresis so
+   ribbons cross only when dominance really changes), silent stretches thin to a hairline.
+3. **Doublet wheel** — the five books bent into a ring with a per-chapter composition
+   track; chords across the center connect the 29 twice-told stories in
+   `viz/doublets.json`; clicking a chord or chip shows both passages side by side.
+4. **3D terrain** — source density as elevation: five parallel ridges (P a plateau over
+   Leviticus, D a massif at Deuteronomy). three.js is loaded lazily from jsdelivr only
+   when the tab is opened; there is a text fallback when WebGL is unavailable.
+
+The author filter (clicking an author card) dims the other hands in every view.
+
+- `viz/index.html` — the finished page, with the full 5,852-verse dataset and the doublet
+  list embedded; open it directly in a browser (no server needed).
 - `viz/build_data.py` — regenerates `viz/data.json` from `output/<Book>/<Book>.csv` and
-  re-injects it into `index.html`. Run after a pipeline re-run: `py -3 viz/build_data.py`
-- Published artifact: https://claude.ai/artifact/92TUdq87urGuJsQhKj9Jng
+  re-injects it into `index.html`, along with `viz/doublets.json` if present. Run after a
+  pipeline re-run: `py -3 viz/build_data.py`
+- `viz/doublets.json` — the doublet inventory (classical lists per Friedman 1987/2003 and
+  Wellhausen 1883). Each half records the conventional source assignment *and* the
+  attribution measured from this repo's per-verse CSVs (`csv_dominant`, `csv_share`);
+  where they disagree a `discrepancy` note says so, and the page follows the CSV.
+- Published artifact: https://claude.ai/artifact/92TUdq87urGuJsQhKj9Jng (all four views
+  live at this one URL; republish via the Artifact tool with this URL to keep it stable).
 
 ### Vector Database Setup
 
