@@ -4,6 +4,7 @@
 Reads output/<Book>/<Book>.csv (produced by kjv_pipeline.py) and writes:
   - viz/data.json                 the compact dataset
   - injects the same JSON into viz/index.html between the kjv-data script tags
+  - injects viz/doublets.json (if present) between the kjv-doublets script tags
 
 Run from the project root:  py -3 viz/build_data.py
 """
@@ -126,10 +127,25 @@ def main() -> int:
             flags=re.DOTALL,
         )
         if count == 1:
-            index.write_text(new_html, encoding="utf-8")
             print(f"Injected data into {index}")
         else:
             print("WARNING: kjv-data script tag not found in index.html; skipped injection")
+
+        doublets_path = VIZ / "doublets.json"
+        if doublets_path.exists():
+            dd = json.loads(doublets_path.read_text(encoding="utf-8"))
+            dpayload = json.dumps(dd, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+            new_html, dcount = re.subn(
+                r'(<script id="kjv-doublets" type="application/json">).*?(</script>)',
+                lambda m: m.group(1) + dpayload + m.group(2),
+                new_html,
+                flags=re.DOTALL,
+            )
+            if dcount == 1:
+                print(f"Injected {len(dd.get('doublets', []))} doublets into {index}")
+            else:
+                print("WARNING: kjv-doublets script tag not found in index.html; skipped injection")
+        index.write_text(new_html, encoding="utf-8")
     return 0
 
 

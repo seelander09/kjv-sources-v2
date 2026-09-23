@@ -1,0 +1,1097 @@
+{
+ "meta": {
+  "what": "Twice-told stories (doublets) in the Pentateuch with verse ranges and source attribution",
+  "attribution_rule": "csv_dominant/csv_share are measured from this repo's per-verse CSVs (Wikiversity color-coded DH edition, Friedman tradition) and are what the visualization draws; 'conventional' records the classical assignment and 'discrepancy' is noted where they differ.",
+  "sources": [
+   "Richard Elliott Friedman, Who Wrote the Bible? (1987) and The Bible with Sources Revealed (2003)",
+   "Julius Wellhausen, Prolegomena to the History of Israel (1883)",
+   "Wikipedia: Wife-sister narratives in the Book of Genesis (source-criticism section)",
+   "Wikiversity: Bible, English, King James, According to the documentary hypothesis (the repo's upstream text)"
+  ]
+ },
+ "doublets": [
+  {
+   "id": "creation",
+   "title": "Two creations",
+   "note": "A seven-day cosmic creation by 'God', then a garden story where 'the LORD' forms man from dust before any plants.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Genesis 1:1-2:3",
+     "book": "Genesis",
+     "c0": 1,
+     "v0": 1,
+     "c1": 2,
+     "v1": 3,
+     "conventional": "P",
+     "csv_dominant": "P",
+     "csv_share": {
+      "P": 100.0
+     },
+     "verses": 34
+    },
+    {
+     "ref": "Genesis 2:4-25",
+     "book": "Genesis",
+     "c0": 2,
+     "v0": 4,
+     "c1": 2,
+     "v1": 25,
+     "conventional": "J",
+     "csv_dominant": "J",
+     "csv_share": {
+      "J": 95.5,
+      "P": 2.8,
+      "R": 1.2
+     },
+     "verses": 22
+    }
+   ]
+  },
+  {
+   "id": "genealogy-adam",
+   "title": "Two family lines from Adam",
+   "note": "Cain's line of city-builders and musicians, then the Book of Generations' ten-generation line through Seth.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Genesis 4:17-26",
+     "book": "Genesis",
+     "c0": 4,
+     "v0": 17,
+     "c1": 4,
+     "v1": 26,
+     "conventional": "J",
+     "csv_dominant": "J",
+     "csv_share": {
+      "J": 100.0
+     },
+     "verses": 10
+    },
+    {
+     "ref": "Genesis 5:1-32",
+     "book": "Genesis",
+     "c0": 5,
+     "v0": 1,
+     "c1": 5,
+     "v1": 32,
+     "conventional": "P",
+     "csv_dominant": "P",
+     "csv_share": {
+      "P": 94.0,
+      "J": 5.8
+     },
+     "verses": 32
+    }
+   ]
+  },
+  {
+   "id": "flood-command",
+   "title": "The flood: two commands to board",
+   "note": "God orders two of every animal into the ark; the LORD orders seven pairs of the clean ones. Both survive, interleaved.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Genesis 6:13-22",
+     "book": "Genesis",
+     "c0": 6,
+     "v0": 13,
+     "c1": 6,
+     "v1": 22,
+     "conventional": "P",
+     "csv_dominant": "P",
+     "csv_share": {
+      "P": 100.0
+     },
+     "verses": 10
+    },
+    {
+     "ref": "Genesis 7:1-5",
+     "book": "Genesis",
+     "c0": 7,
+     "v0": 1,
+     "c1": 7,
+     "v1": 5,
+     "conventional": "J",
+     "csv_dominant": "J",
+     "csv_share": {
+      "J": 100.0
+     },
+     "verses": 5
+    }
+   ]
+  },
+  {
+   "id": "abram-covenant",
+   "title": "Two covenants with Abraham",
+   "note": "A smoking firepot passes between split carcasses at sunset; later God Almighty gives the covenant of circumcision.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Genesis 15:1-21",
+     "book": "Genesis",
+     "c0": 15,
+     "v0": 1,
+     "c1": 15,
+     "v1": 21,
+     "conventional": "J",
+     "csv_dominant": "E",
+     "csv_share": {
+      "E": 80.9,
+      "R": 19.0
+     },
+     "verses": 21,
+     "discrepancy": "conventional J vs CSV-dominant E; trusting the CSV"
+    },
+    {
+     "ref": "Genesis 17:1-27",
+     "book": "Genesis",
+     "c0": 17,
+     "v0": 1,
+     "c1": 17,
+     "v1": 27,
+     "conventional": "P",
+     "csv_dominant": "P",
+     "csv_share": {
+      "P": 100.0
+     },
+     "verses": 27
+    }
+   ]
+  },
+  {
+   "id": "hagar",
+   "title": "Hagar driven out twice",
+   "note": "Pregnant Hagar flees Sarai's harshness to a desert spring; years later Abraham expels her and the boy Ishmael.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Genesis 16:4-14",
+     "book": "Genesis",
+     "c0": 16,
+     "v0": 4,
+     "c1": 16,
+     "v1": 14,
+     "conventional": "J",
+     "csv_dominant": "J",
+     "csv_share": {
+      "J": 93.5,
+      "R": 6.5
+     },
+     "verses": 11
+    },
+    {
+     "ref": "Genesis 21:8-21",
+     "book": "Genesis",
+     "c0": 21,
+     "v0": 8,
+     "c1": 21,
+     "v1": 21,
+     "conventional": "E",
+     "csv_dominant": "E",
+     "csv_share": {
+      "E": 100.0
+     },
+     "verses": 14
+    }
+   ]
+  },
+  {
+   "id": "wife-sister-1-2",
+   "title": "Wife passed off as sister (Egypt / Gerar)",
+   "note": "Abram tells Pharaoh that Sarai is his sister; Abraham later plays the same trick on King Abimelech of Gerar.",
+   "basis": "Wikipedia, 'Wife-sister narratives in the Book of Genesis' (source-criticism section)",
+   "halves": [
+    {
+     "ref": "Genesis 12:10-20",
+     "book": "Genesis",
+     "c0": 12,
+     "v0": 10,
+     "c1": 12,
+     "v1": 20,
+     "conventional": "J",
+     "csv_dominant": "J",
+     "csv_share": {
+      "J": 100.0
+     },
+     "verses": 11
+    },
+    {
+     "ref": "Genesis 20:1-18",
+     "book": "Genesis",
+     "c0": 20,
+     "v0": 1,
+     "c1": 20,
+     "v1": 18,
+     "conventional": "E",
+     "csv_dominant": "E",
+     "csv_share": {
+      "E": 100.0
+     },
+     "verses": 18
+    }
+   ]
+  },
+  {
+   "id": "wife-sister-2-3",
+   "title": "Wife passed off as sister (Gerar, twice)",
+   "note": "Abraham deceives Abimelech about Sarah; a generation later Isaac deceives an Abimelech of Gerar about Rebekah.",
+   "basis": "Wikipedia, 'Wife-sister narratives in the Book of Genesis' (source-criticism section)",
+   "halves": [
+    {
+     "ref": "Genesis 20:1-18",
+     "book": "Genesis",
+     "c0": 20,
+     "v0": 1,
+     "c1": 20,
+     "v1": 18,
+     "conventional": "E",
+     "csv_dominant": "E",
+     "csv_share": {
+      "E": 100.0
+     },
+     "verses": 18
+    },
+    {
+     "ref": "Genesis 26:6-11",
+     "book": "Genesis",
+     "c0": 26,
+     "v0": 6,
+     "c1": 26,
+     "v1": 11,
+     "conventional": "J",
+     "csv_dominant": "J",
+     "csv_share": {
+      "J": 100.0
+     },
+     "verses": 6
+    }
+   ]
+  },
+  {
+   "id": "beersheba",
+   "title": "Beersheba named twice",
+   "note": "Abraham swears an oath with Abimelech over a well and names Beersheba; Isaac's servants re-enact it a generation later.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Genesis 21:22-34",
+     "book": "Genesis",
+     "c0": 21,
+     "v0": 22,
+     "c1": 21,
+     "v1": 34,
+     "conventional": "E",
+     "csv_dominant": "J",
+     "csv_share": {
+      "J": 60.5,
+      "E": 39.5
+     },
+     "verses": 13,
+     "discrepancy": "conventional E vs CSV-dominant J; trusting the CSV"
+    },
+    {
+     "ref": "Genesis 26:26-33",
+     "book": "Genesis",
+     "c0": 26,
+     "v0": 26,
+     "c1": 26,
+     "v1": 33,
+     "conventional": "J",
+     "csv_dominant": "J",
+     "csv_share": {
+      "J": 100.0
+     },
+     "verses": 8
+    }
+   ]
+  },
+  {
+   "id": "bethel",
+   "title": "Bethel consecrated twice",
+   "note": "Jacob dreams of the ladder and names Bethel on his way out; God appears again to name it when he returns.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Genesis 28:10-22",
+     "book": "Genesis",
+     "c0": 28,
+     "v0": 10,
+     "c1": 28,
+     "v1": 22,
+     "conventional": "J/E",
+     "csv_dominant": "E",
+     "csv_share": {
+      "E": 52.7,
+      "J": 46.9
+     },
+     "verses": 13
+    },
+    {
+     "ref": "Genesis 35:9-15",
+     "book": "Genesis",
+     "c0": 35,
+     "v0": 9,
+     "c1": 35,
+     "v1": 15,
+     "conventional": "P",
+     "csv_dominant": "P",
+     "csv_share": {
+      "P": 75.5,
+      "J": 14.3,
+      "R": 9.9
+     },
+     "verses": 7
+    }
+   ]
+  },
+  {
+   "id": "israel-name",
+   "title": "Jacob renamed Israel twice",
+   "note": "A night wrestler at Peniel renames Jacob; God Almighty repeats the renaming at Bethel.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Genesis 32:24-32",
+     "book": "Genesis",
+     "c0": 32,
+     "v0": 24,
+     "c1": 32,
+     "v1": 32,
+     "conventional": "J",
+     "csv_dominant": "J",
+     "csv_share": {
+      "J": 57.2,
+      "E": 37.2,
+      "R": 5.3
+     },
+     "verses": 9
+    },
+    {
+     "ref": "Genesis 35:9-10",
+     "book": "Genesis",
+     "c0": 35,
+     "v0": 9,
+     "c1": 35,
+     "v1": 10,
+     "conventional": "P",
+     "csv_dominant": "P",
+     "csv_share": {
+      "P": 100.0
+     },
+     "verses": 2
+    }
+   ]
+  },
+  {
+   "id": "paddan-aram",
+   "title": "Two reasons Jacob leaves home",
+   "note": "Rebekah sends Jacob away to escape Esau's murder plot; in the next breath he is sent to find a proper wife.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Genesis 27:41-45",
+     "book": "Genesis",
+     "c0": 27,
+     "v0": 41,
+     "c1": 27,
+     "v1": 45,
+     "conventional": "J",
+     "csv_dominant": "J",
+     "csv_share": {
+      "J": 100.0
+     },
+     "verses": 5
+    },
+    {
+     "ref": "Genesis 27:46-28:5",
+     "book": "Genesis",
+     "c0": 27,
+     "v0": 46,
+     "c1": 28,
+     "v1": 5,
+     "conventional": "P",
+     "csv_dominant": "P",
+     "csv_share": {
+      "P": 100.0
+     },
+     "verses": 6
+    }
+   ]
+  },
+  {
+   "id": "joseph-sold",
+   "title": "Joseph sold twice over",
+   "note": "Judah persuades his brothers to sell Joseph to Ishmaelites; Midianites pull him from the pit in the seam of the same scene.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Genesis 37:25-27",
+     "book": "Genesis",
+     "c0": 37,
+     "v0": 25,
+     "c1": 37,
+     "v1": 27,
+     "conventional": "J",
+     "csv_dominant": "J",
+     "csv_share": {
+      "J": 93.3,
+      "E": 6.5
+     },
+     "verses": 3
+    },
+    {
+     "ref": "Genesis 37:28-36",
+     "book": "Genesis",
+     "c0": 37,
+     "v0": 28,
+     "c1": 37,
+     "v1": 36,
+     "conventional": "E",
+     "csv_dominant": "J",
+     "csv_share": {
+      "J": 67.5,
+      "E": 32.4
+     },
+     "verses": 9,
+     "discrepancy": "conventional E vs CSV-dominant J; trusting the CSV"
+    }
+   ]
+  },
+  {
+   "id": "divine-name",
+   "title": "The name of God revealed twice",
+   "note": "At the burning bush God discloses the name; in Egypt God tells Moses that Abraham knew him only as God Almighty.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Exodus 3:9-15",
+     "book": "Exodus",
+     "c0": 3,
+     "v0": 9,
+     "c1": 3,
+     "v1": 15,
+     "conventional": "E",
+     "csv_dominant": "E",
+     "csv_share": {
+      "E": 98.9,
+      "J": 1.0
+     },
+     "verses": 7
+    },
+    {
+     "ref": "Exodus 6:2-9",
+     "book": "Exodus",
+     "c0": 6,
+     "v0": 2,
+     "c1": 6,
+     "v1": 9,
+     "conventional": "P",
+     "csv_dominant": "P",
+     "csv_share": {
+      "P": 100.0
+     },
+     "verses": 8
+    }
+   ]
+  },
+  {
+   "id": "passover",
+   "title": "Passover legislated twice",
+   "note": "Precise Priestly statute (lamb per household, four-day wait), then the elders told to slay it with hyssop and blood.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Exodus 12:1-20",
+     "book": "Exodus",
+     "c0": 12,
+     "v0": 1,
+     "c1": 12,
+     "v1": 20,
+     "conventional": "P",
+     "csv_dominant": "P",
+     "csv_share": {
+      "P": 100.0
+     },
+     "verses": 20
+    },
+    {
+     "ref": "Exodus 12:21-27",
+     "book": "Exodus",
+     "c0": 12,
+     "v0": 21,
+     "c1": 12,
+     "v1": 27,
+     "conventional": "J",
+     "csv_dominant": "P",
+     "csv_share": {
+      "P": 90.9,
+      "J": 8.9
+     },
+     "verses": 7,
+     "discrepancy": "conventional J vs CSV-dominant P; trusting the CSV"
+    }
+   ]
+  },
+  {
+   "id": "manna-quail",
+   "title": "Manna and quail, twice",
+   "note": "Bread from heaven with Sabbath rules in the wilderness of Sin; later the people crave meat and quail bury the camp.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Exodus 16:1-36",
+     "book": "Exodus",
+     "c0": 16,
+     "v0": 1,
+     "c1": 16,
+     "v1": 36,
+     "conventional": "P",
+     "csv_dominant": "P",
+     "csv_share": {
+      "P": 82.7,
+      "J": 17.3
+     },
+     "verses": 36
+    },
+    {
+     "ref": "Numbers 11:4-34",
+     "book": "Numbers",
+     "c0": 11,
+     "v0": 4,
+     "c1": 11,
+     "v1": 34,
+     "conventional": "J/E",
+     "csv_dominant": "J",
+     "csv_share": {
+      "J": 50.3,
+      "E": 42.1,
+      "R": 7.6
+     },
+     "verses": 31
+    }
+   ]
+  },
+  {
+   "id": "water-rock",
+   "title": "Water from the rock, twice",
+   "note": "Moses strikes the rock at Massah-Meribah; at Meribah again he strikes twice and is barred from the land for it.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Exodus 17:1-7",
+     "book": "Exodus",
+     "c0": 17,
+     "v0": 1,
+     "c1": 17,
+     "v1": 7,
+     "conventional": "E",
+     "csv_dominant": "J",
+     "csv_share": {
+      "J": 87.2,
+      "P": 12.7
+     },
+     "verses": 7,
+     "discrepancy": "conventional E vs CSV-dominant J; trusting the CSV"
+    },
+    {
+     "ref": "Numbers 20:2-13",
+     "book": "Numbers",
+     "c0": 20,
+     "v0": 2,
+     "c1": 20,
+     "v1": 13,
+     "conventional": "P",
+     "csv_dominant": "P",
+     "csv_share": {
+      "P": 84.7,
+      "E": 15.2
+     },
+     "verses": 12
+    }
+   ]
+  },
+  {
+   "id": "judges",
+   "title": "Judges appointed twice",
+   "note": "Jethro tells Moses to delegate justice; Deuteronomy has Moses recall deciding it himself.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Exodus 18:13-27",
+     "book": "Exodus",
+     "c0": 18,
+     "v0": 13,
+     "c1": 18,
+     "v1": 27,
+     "conventional": "E",
+     "csv_dominant": "E",
+     "csv_share": {
+      "E": 100.0
+     },
+     "verses": 15
+    },
+    {
+     "ref": "Deuteronomy 1:9-18",
+     "book": "Deuteronomy",
+     "c0": 1,
+     "v0": 9,
+     "c1": 1,
+     "v1": 18,
+     "conventional": "D",
+     "csv_dominant": "D",
+     "csv_share": {
+      "D": 100.0
+     },
+     "verses": 10
+    }
+   ]
+  },
+  {
+   "id": "theophany",
+   "title": "The mountain of God, seen twice",
+   "note": "Thunder, fire and trumpet at Sinai; Deuteronomy retells the day the mountain burned, at Horeb.",
+   "basis": "Wellhausen, Prolegomena to the History of Israel (1883)",
+   "halves": [
+    {
+     "ref": "Exodus 19:16-19",
+     "book": "Exodus",
+     "c0": 19,
+     "v0": 16,
+     "c1": 19,
+     "v1": 19,
+     "conventional": "J/E",
+     "csv_dominant": "E",
+     "csv_share": {
+      "E": 64.3,
+      "J": 35.0
+     },
+     "verses": 4
+    },
+    {
+     "ref": "Deuteronomy 4:10-14",
+     "book": "Deuteronomy",
+     "c0": 4,
+     "v0": 10,
+     "c1": 4,
+     "v1": 14,
+     "conventional": "D",
+     "csv_dominant": "D",
+     "csv_share": {
+      "D": 100.0
+     },
+     "verses": 5
+    }
+   ]
+  },
+  {
+   "id": "decalogue",
+   "title": "The two Decalogues",
+   "note": "The Ten Commandments spoken at Sinai and repeated, with a different Sabbath rationale, on the plains of Moab.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Exodus 20:1-17",
+     "book": "Exodus",
+     "c0": 20,
+     "v0": 1,
+     "c1": 20,
+     "v1": 17,
+     "conventional": "E/R",
+     "csv_dominant": "R",
+     "csv_share": {
+      "R": 100.0
+     },
+     "verses": 17
+    },
+    {
+     "ref": "Deuteronomy 5:6-21",
+     "book": "Deuteronomy",
+     "c0": 5,
+     "v0": 6,
+     "c1": 5,
+     "v1": 21,
+     "conventional": "D",
+     "csv_dominant": "D",
+     "csv_share": {
+      "D": 100.0
+     },
+     "verses": 16
+    }
+   ]
+  },
+  {
+   "id": "ritual-decalogue",
+   "title": "The 'ritual decalogue'",
+   "note": "After the calf, the LORD rewrites the tablets - but dictates a different, festival-centred list of commands.",
+   "basis": "Wellhausen, Prolegomena to the History of Israel (1883)",
+   "halves": [
+    {
+     "ref": "Exodus 34:10-28",
+     "book": "Exodus",
+     "c0": 34,
+     "v0": 10,
+     "c1": 34,
+     "v1": 28,
+     "conventional": "J",
+     "csv_dominant": "R",
+     "csv_share": {
+      "R": 94.3,
+      "E": 5.6
+     },
+     "verses": 19,
+     "discrepancy": "conventional J vs CSV-dominant R; trusting the CSV"
+    },
+    {
+     "ref": "Exodus 20:1-17",
+     "book": "Exodus",
+     "c0": 20,
+     "v0": 1,
+     "c1": 20,
+     "v1": 17,
+     "conventional": "E/R",
+     "csv_dominant": "R",
+     "csv_share": {
+      "R": 100.0
+     },
+     "verses": 17
+    }
+   ]
+  },
+  {
+   "id": "festivals-ee",
+   "title": "Two early festival calendars",
+   "note": "The Covenant Code's three pilgrim feasts, and the near-identical list in the rewritten tablets.",
+   "basis": "Wellhausen, Prolegomena to the History of Israel (1883)",
+   "halves": [
+    {
+     "ref": "Exodus 23:14-19",
+     "book": "Exodus",
+     "c0": 23,
+     "v0": 14,
+     "c1": 23,
+     "v1": 19,
+     "conventional": "E",
+     "csv_dominant": "E",
+     "csv_share": {
+      "E": 77.4,
+      "R": 22.4
+     },
+     "verses": 6
+    },
+    {
+     "ref": "Exodus 34:18-26",
+     "book": "Exodus",
+     "c0": 34,
+     "v0": 18,
+     "c1": 34,
+     "v1": 26,
+     "conventional": "J",
+     "csv_dominant": "R",
+     "csv_share": {
+      "R": 100.0
+     },
+     "verses": 9,
+     "discrepancy": "conventional J vs CSV-dominant R; trusting the CSV"
+    }
+   ]
+  },
+  {
+   "id": "golden-calf",
+   "title": "The golden calf, told twice",
+   "note": "Aaron casts the calf and Moses shatters the tablets; Deuteronomy retells the whole scandal in Moses' own voice.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Exodus 32:1-35",
+     "book": "Exodus",
+     "c0": 32,
+     "v0": 1,
+     "c1": 32,
+     "v1": 35,
+     "conventional": "E",
+     "csv_dominant": "E",
+     "csv_share": {
+      "E": 66.5,
+      "R": 20.4,
+      "J": 13.1
+     },
+     "verses": 35
+    },
+    {
+     "ref": "Deuteronomy 9:8-21",
+     "book": "Deuteronomy",
+     "c0": 9,
+     "v0": 8,
+     "c1": 9,
+     "v1": 21,
+     "conventional": "D",
+     "csv_dominant": "D",
+     "csv_share": {
+      "D": 95.5,
+      "R": 4.5
+     },
+     "verses": 14
+    }
+   ]
+  },
+  {
+   "id": "festival-calendar",
+   "title": "Two full festival calendars",
+   "note": "Leviticus' priestly liturgical year, and Deuteronomy's pilgrim calendar centred on 'the place the LORD shall choose'.",
+   "basis": "Wellhausen, Prolegomena to the History of Israel (1883)",
+   "halves": [
+    {
+     "ref": "Leviticus 23:1-44",
+     "book": "Leviticus",
+     "c0": 23,
+     "v0": 1,
+     "c1": 23,
+     "v1": 44,
+     "conventional": "P",
+     "csv_dominant": "P",
+     "csv_share": {
+      "P": 95.9,
+      "R": 4.1
+     },
+     "verses": 44
+    },
+    {
+     "ref": "Deuteronomy 16:1-17",
+     "book": "Deuteronomy",
+     "c0": 16,
+     "v0": 1,
+     "c1": 16,
+     "v1": 17,
+     "conventional": "D",
+     "csv_dominant": "D",
+     "csv_share": {
+      "D": 100.0
+     },
+     "verses": 17
+    }
+   ]
+  },
+  {
+   "id": "diet",
+   "title": "Clean and unclean animals, twice",
+   "note": "Two dietary law codes: Leviticus' taxonomy of the clean and unclean, repeated with variations in Deuteronomy.",
+   "basis": "Wellhausen, Prolegomena to the History of Israel (1883)",
+   "halves": [
+    {
+     "ref": "Leviticus 11:1-47",
+     "book": "Leviticus",
+     "c0": 11,
+     "v0": 1,
+     "c1": 11,
+     "v1": 47,
+     "conventional": "P",
+     "csv_dominant": "P",
+     "csv_share": {
+      "P": 100.0
+     },
+     "verses": 47
+    },
+    {
+     "ref": "Deuteronomy 14:3-21",
+     "book": "Deuteronomy",
+     "c0": 14,
+     "v0": 3,
+     "c1": 14,
+     "v1": 21,
+     "conventional": "D",
+     "csv_dominant": "D",
+     "csv_share": {
+      "D": 100.0
+     },
+     "verses": 19
+    }
+   ]
+  },
+  {
+   "id": "slaves",
+   "title": "Hebrew slave release, twice",
+   "note": "The Covenant Code frees a male slave in year seven; Deuteronomy repeats the law and adds the sister explicitly.",
+   "basis": "Wellhausen, Prolegomena to the History of Israel (1883)",
+   "halves": [
+    {
+     "ref": "Exodus 21:2-11",
+     "book": "Exodus",
+     "c0": 21,
+     "v0": 2,
+     "c1": 21,
+     "v1": 11,
+     "conventional": "E",
+     "csv_dominant": "E",
+     "csv_share": {
+      "E": 100.0
+     },
+     "verses": 10
+    },
+    {
+     "ref": "Deuteronomy 15:12-18",
+     "book": "Deuteronomy",
+     "c0": 15,
+     "v0": 12,
+     "c1": 15,
+     "v1": 18,
+     "conventional": "D",
+     "csv_dominant": "D",
+     "csv_share": {
+      "D": 100.0
+     },
+     "verses": 7
+    }
+   ]
+  },
+  {
+   "id": "spies",
+   "title": "The spies, told twice",
+   "note": "Twelve scouts and the forty-year sentence in Numbers; Deuteronomy retells the rebellion at Kadesh-barnea.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Numbers 13:1-14:45",
+     "book": "Numbers",
+     "c0": 13,
+     "v0": 1,
+     "c1": 14,
+     "v1": 45,
+     "conventional": "J/P",
+     "csv_dominant": "J",
+     "csv_share": {
+      "J": 51.6,
+      "P": 48.3
+     },
+     "verses": 78
+    },
+    {
+     "ref": "Deuteronomy 1:19-46",
+     "book": "Deuteronomy",
+     "c0": 1,
+     "v0": 19,
+     "c1": 1,
+     "v1": 46,
+     "conventional": "D",
+     "csv_dominant": "D",
+     "csv_share": {
+      "D": 94.6,
+      "R": 5.4
+     },
+     "verses": 28
+    }
+   ]
+  },
+  {
+   "id": "korah",
+   "title": "Two rebellions woven into one",
+   "note": "Korah's Levite mutiny over priesthood and the Dathan-Abiram revolt over Moses' rule share one chapter.",
+   "basis": "Friedman, The Bible with Sources Revealed (2003)",
+   "halves": [
+    {
+     "ref": "Numbers 16:1-11",
+     "book": "Numbers",
+     "c0": 16,
+     "v0": 1,
+     "c1": 16,
+     "v1": 11,
+     "conventional": "P",
+     "csv_dominant": "P",
+     "csv_share": {
+      "P": 93.9,
+      "E": 4.3,
+      "R": 1.7
+     },
+     "verses": 11
+    },
+    {
+     "ref": "Numbers 16:12-15",
+     "book": "Numbers",
+     "c0": 16,
+     "v0": 12,
+     "c1": 16,
+     "v1": 15,
+     "conventional": "J",
+     "csv_dominant": "E",
+     "csv_share": {
+      "E": 100.0
+     },
+     "verses": 4,
+     "discrepancy": "conventional J vs CSV-dominant E; trusting the CSV"
+    }
+   ]
+  },
+  {
+   "id": "tithe",
+   "title": "Tithes assigned twice",
+   "note": "Numbers gives every tithe to the Levites; Deuteronomy has the farmer eat it before the LORD, or its money-equivalent.",
+   "basis": "Wellhausen, Prolegomena to the History of Israel (1883)",
+   "halves": [
+    {
+     "ref": "Numbers 18:21-32",
+     "book": "Numbers",
+     "c0": 18,
+     "v0": 21,
+     "c1": 18,
+     "v1": 32,
+     "conventional": "P",
+     "csv_dominant": "P",
+     "csv_share": {
+      "P": 100.0
+     },
+     "verses": 12
+    },
+    {
+     "ref": "Deuteronomy 14:22-29",
+     "book": "Deuteronomy",
+     "c0": 14,
+     "v0": 22,
+     "c1": 14,
+     "v1": 29,
+     "conventional": "D",
+     "csv_dominant": "D",
+     "csv_share": {
+      "D": 100.0
+     },
+     "verses": 8
+    }
+   ]
+  },
+  {
+   "id": "refuge",
+   "title": "Cities of refuge, twice",
+   "note": "Six asylum cities for accidental killers in Numbers; Deuteronomy commands three, with the same blood-avenger logic.",
+   "basis": "Wellhausen, Prolegomena to the History of Israel (1883)",
+   "halves": [
+    {
+     "ref": "Numbers 35:9-34",
+     "book": "Numbers",
+     "c0": 35,
+     "v0": 9,
+     "c1": 35,
+     "v1": 34,
+     "conventional": "P",
+     "csv_dominant": "P",
+     "csv_share": {
+      "P": 100.0
+     },
+     "verses": 26
+    },
+    {
+     "ref": "Deuteronomy 19:1-13",
+     "book": "Deuteronomy",
+     "c0": 19,
+     "v0": 1,
+     "c1": 19,
+     "v1": 13,
+     "conventional": "D",
+     "csv_dominant": "D",
+     "csv_share": {
+      "D": 100.0
+     },
+     "verses": 13
+    }
+   ]
+  }
+ ]
+}
